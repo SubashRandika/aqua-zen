@@ -1,0 +1,183 @@
+@import "tailwindcss";
+
+/*
+ * AquaZen tokens. A dark room, glass and lamp light:
+ * ink for the room, mist for text, hairlines for structure,
+ * lamp amber for daylight / active state, moon blue for night.
+ */
+@theme {
+	--color-ink: #070a0b;
+	--color-ink-raised: #0e1315;
+	--color-mist: #dbe7e3;
+	--color-mist-dim: rgb(219 231 227 / 0.62);
+	--color-mist-faint: rgb(219 231 227 / 0.38);
+	--color-hairline: rgb(214 232 226 / 0.14);
+	--color-hairline-strong: rgb(214 232 226 / 0.26);
+	--color-glass: rgb(16 23 25 / 0.46);
+	--color-lamp: #e8c08a;
+	--color-moon: #9fb8d6;
+
+	--font-display: var(--font-shippori), "Shippori Mincho", serif;
+	--font-sans: var(--font-instrument), "Instrument Sans", system-ui, sans-serif;
+	--font-mono: var(--font-plex), "IBM Plex Mono", ui-monospace, monospace;
+
+	--ease-calm: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@layer base {
+	:root {
+		color-scheme: dark;
+	}
+
+	html,
+	body {
+		height: 100%;
+		overflow: hidden;
+		background: var(--color-ink);
+		color: var(--color-mist);
+		font-family: var(--font-sans);
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+		overscroll-behavior: none;
+		touch-action: none;
+	}
+
+	::selection {
+		background: rgb(232 192 138 / 0.3);
+	}
+
+	/* A calm, visible focus ring for keyboard users only. */
+	:focus-visible {
+		outline: 1.5px solid var(--color-mist);
+		outline-offset: 3px;
+		border-radius: 999px;
+	}
+}
+
+@layer components {
+	.glass-panel {
+		background: var(--color-glass);
+		border: 1px solid var(--color-hairline);
+		backdrop-filter: blur(16px) saturate(1.15);
+		-webkit-backdrop-filter: blur(16px) saturate(1.15);
+		box-shadow:
+			0 1px 0 rgb(255 255 255 / 0.04) inset,
+			0 16px 40px -18px rgb(0 0 0 / 0.6);
+	}
+
+	/* Panels hold text, so they need a calmer, more opaque surface than the dock. */
+	.glass-panel--solid {
+		background: rgb(11 16 18 / 0.78);
+	}
+
+	@media (prefers-reduced-transparency: reduce) {
+		.glass-panel {
+			background: rgb(14 19 21 / 0.92);
+			backdrop-filter: none;
+			-webkit-backdrop-filter: none;
+		}
+	}
+
+	.wordmark {
+		font-family: var(--font-display);
+		letter-spacing: 0.32em;
+		font-weight: 400;
+	}
+}
+
+/* A slow breathing ring for the loader. */
+@keyframes azBreathe {
+	0%,
+	100% {
+		transform: scale(0.86);
+		opacity: 0.35;
+	}
+	50% {
+		transform: scale(1);
+		opacity: 0.85;
+	}
+}
+
+.loader-ring {
+	animation: azBreathe 3.6s var(--ease-calm) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.loader-ring {
+		animation: none;
+		opacity: 0.6;
+	}
+}
+
+input[type="range"].az-range {
+	appearance: none;
+	-webkit-appearance: none;
+	height: 20px;
+	background: transparent;
+	cursor: pointer;
+}
+input[type="range"].az-range::-webkit-slider-runnable-track {
+	height: 2px;
+	border-radius: 2px;
+	background: linear-gradient(
+		to right,
+		var(--color-mist) var(--fill, 50%),
+		var(--color-hairline-strong) var(--fill, 50%)
+	);
+}
+input[type="range"].az-range::-moz-range-track {
+	height: 2px;
+	border-radius: 2px;
+	background: var(--color-hairline-strong);
+}
+input[type="range"].az-range::-moz-range-progress {
+	height: 2px;
+	background: var(--color-mist);
+}
+input[type="range"].az-range::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	width: 12px;
+	height: 12px;
+	margin-top: -5px;
+	border-radius: 50%;
+	background: var(--color-mist);
+	border: none;
+}
+input[type="range"].az-range::-moz-range-thumb {
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	background: var(--color-mist);
+	border: none;
+}
+input[type="range"].az-range:focus-visible {
+	outline-offset: 2px;
+	border-radius: 4px;
+}
+
+/* Slow-moving water light for messages shown without WebGL. */
+@keyframes azDrift {
+	0% {
+		transform: translate3d(-3%, -2%, 0) scale(1.05);
+	}
+	50% {
+		transform: translate3d(2%, 1%, 0) scale(1.1);
+	}
+	100% {
+		transform: translate3d(-3%, -2%, 0) scale(1.05);
+	}
+}
+
+.calm-water {
+	background:
+		radial-gradient(60% 45% at 58% 8%, rgb(120 168 160 / 0.22), transparent 70%),
+		radial-gradient(40% 35% at 25% 30%, rgb(70 120 115 / 0.14), transparent 70%),
+		radial-gradient(80% 60% at 50% 110%, rgb(20 34 32 / 0.9), transparent 70%);
+	animation: azDrift 40s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.calm-water {
+		animation: none;
+	}
+}

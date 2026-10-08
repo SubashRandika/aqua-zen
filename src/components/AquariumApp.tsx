@@ -57,6 +57,7 @@ export function AquariumApp() {
 			hour: settings.aquariumHour,
 			cycleMinutes: settings.cycleMinutes,
 			lightMode: settings.lightMode,
+			tankLight: settings.tankLight,
 		})
 		prepareAssets(preset, (step) => {
 			if (!cancelled) useSessionStore.getState().setLoadingStage(step)

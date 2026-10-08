@@ -2,6 +2,9 @@ import type { Vector3Like } from "three"
 
 export type LightMode = "auto" | "day" | "night"
 
+/** Who switched the tank light: the user, a change of light mode, or the fixture's timer. */
+export type TankLightCause = "manual" | "mode" | "timer"
+
 export type DayPhase = "night" | "sunrise" | "morning" | "day" | "afternoon" | "sunset" | "evening"
 
 export interface GlassTapEvent {
@@ -41,6 +44,12 @@ export interface LightChangedEvent {
 	mode: LightMode
 }
 
+export interface TankLightChangedEvent {
+	type: "tank-light:changed"
+	on: boolean
+	cause: TankLightCause
+}
+
 export interface TimeChangedEvent {
 	type: "time:phase"
 	phase: DayPhase
@@ -63,6 +72,7 @@ export type AquariumEvent =
 	| FoodReleasedEvent
 	| FoodConsumedEvent
 	| LightChangedEvent
+	| TankLightChangedEvent
 	| TimeChangedEvent
 	| CameraInteractionEvent
 	| FishStartledEvent

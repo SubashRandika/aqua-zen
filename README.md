@@ -12,7 +12,8 @@ Built with Next.js, React Three Fiber and three.js. Everything you see and hear 
 - **Real swimming.** Fish steer by turning a heading at limited rates; they can't strafe. Tetras and danios swim in bursts and glides, corydoras hop along the bottom, and the body wave, tail beat and fin sculling follow speed and turning.
 - **Feeding.** Flakes float, soak, flutter down in the current and settle. Fish notice them at different moments, approach from different sides, compete for flakes, eat in bites and drift back to normal life.
 - **Glass interaction.** A tap startles shy fish, and the alarm spreads through schools. Curious fish come to investigate afterwards. Rest a finger on the glass and the bold ones come close.
-- **Day and night.** A simulated clock (or your local time) drives lighting and behaviour: diurnal fish rest and lose colour at night, while corydoras become more active.
+- **Day and night.** A simulated clock (or your local time) drives the room's light and the fish's rhythm: diurnal fish rest and lose colour at night, while corydoras become more active.
+- **Tank light.** The LED light above the tank runs on a timer, like a real aquarium's, and you can switch it on or off whenever you like. Switch it on at night and the fish wake up.
 - **Sound.** Optional synthesised water ambience, air-stone bubbles and generative ambient music.
 
 ## Getting started
@@ -41,19 +42,20 @@ Copy `.env.example` to `.env.local` to set `NEXT_PUBLIC_SITE_URL`, which social 
 
 Controls fade away when you're just watching and come back as soon as you move the pointer, touch the screen or press a key.
 
-| Control  | What it does                                                                                       |
-| -------- | -------------------------------------------------------------------------------------------------- |
-| Auto     | Lighting follows the aquarium's own day                                                            |
-| Day      | Lights stay on                                                                                     |
-| Night    | Moonlight                                                                                          |
-| Feed     | Drops a pinch of food. For a few seconds after, tapping the water drops food where you tap         |
-| Sound    | Water sounds, music and volume                                                                     |
-| View     | Seated (still, with gentle motion) or Explore (drag, scroll or pinch). Watch a fish, or reset view |
-| Settings | Quality, length of a day, reduced motion, reduced effects                                          |
+| Control    | What it does                                                                                                                                     |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Auto       | Lighting follows the aquarium's own day                                                                                                          |
+| Day        | Daylight, with the tank light on                                                                                                                 |
+| Night      | Moonlight, with the tank light off                                                                                                               |
+| Tank light | Switches the light above the tank on or off. In Auto it runs on a timer from 07:30 to 18:30; a switch by hand holds until the timer next changes |
+| Feed       | Drops a pinch of food. For a few seconds after, tapping the water drops food where you tap                                                       |
+| Sound      | Water sounds, music and volume                                                                                                                   |
+| View       | Seated (still, with gentle motion) or Explore (drag, scroll or pinch). Watch a fish, or reset view                                               |
+| Settings   | Quality, length of a day, reduced motion, reduced effects                                                                                        |
 
-Keyboard: **F** feed · **A / D / N** auto, day, night · **M** sound · **C** seated or explore · **W** watch a fish · **R** reset view · **H** hide controls · **Esc** close or stop.
+Keyboard: **F** feed · **A / D / N** auto, day, night · **L** tank light · **M** sound · **C** seated or explore · **W** watch a fish · **R** reset view · **H** hide controls · **Esc** close or stop.
 
-Settings persist in `localStorage` under a versioned schema: sound, music, volume, lighting mode, day length, the aquarium's clock, quality, camera mode and accessibility preferences.
+Settings persist in `localStorage` under a versioned schema: sound, music, volume, lighting mode, tank light, day length, the aquarium's clock, quality, camera mode and accessibility preferences.
 
 ## Quality and performance
 

@@ -42,6 +42,19 @@ export const AutoIcon = () => (
 	</Icon>
 )
 
+/** The pendant light above the tank, with light falling from it — faint while it is off. */
+export const TankLightIcon = ({ on }: { on: boolean }) => (
+	<Icon>
+		<path d="M8 4v2.6M16 4v2.6" />
+		<rect x="4" y="6.6" width="16" height="3" rx="1.5" />
+		<path
+			d="m8.4 13.2-.9 3.8M12 13.4v4.2M15.6 13.2l.9 3.8"
+			opacity={on ? 1 : 0.3}
+			className="transition-opacity duration-500"
+		/>
+	</Icon>
+)
+
 /** Pinch of flakes falling. */
 export const FeedIcon = () => (
 	<Icon>

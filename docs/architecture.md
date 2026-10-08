@@ -25,7 +25,9 @@ AquaZen is split into a simulation that knows nothing about rendering or React, 
 Each step:
 
 1. The **clock** advances. It runs an accelerated day, or follows the local time.
-2. The **lighting controller** eases the live lighting profile towards its target. Its `daylight` value, not the clock, is what fish respond to, so manual Day/Night changes behaviour too.
+2. The **lighting controller** eases natural light (the room's daylight or moonlight) towards the target for the light mode, then adds the **tank light** on top. Its `daylight` value, not the clock, is what fish respond to, so manual Day/Night changes behaviour too, and so does switching the tank light on at night.
+   - The tank light is switched by the user, by a change of light mode (Day turns it on, Night off, Auto hands it to its timer), or by its timer in Auto mode. A switch by hand holds until the timer next changes.
+   - Each switch fades like an LED driver: quickly by hand, slowly on the timer.
 3. **Glass stimuli** age, and **food** floats, sinks, settles and expires.
 4. The **fish manager** runs each agent through its pipeline:
    - **Perception:** neighbours come from a spatial hash, and only the nearest few schoolmates count (topological schooling). Distant fish refresh less often.
@@ -40,7 +42,7 @@ Everything random draws from a seeded generator, so a seeded world is reproducib
 
 ### Events
 
-`EventBus` carries `glass:tap`, `glass:hold`, `glass:hover`, `food:released`, `food:consumed`, `light:changed`, `time:phase`, `fish:startled` and `camera:interaction`. The world subscribes to interaction events; audio and UI subscribe to world events.
+`EventBus` carries `glass:tap`, `glass:hold`, `glass:hover`, `food:released`, `food:consumed`, `light:changed`, `tank-light:changed`, `time:phase`, `fish:startled` and `camera:interaction`. The world subscribes to interaction events; audio and UI subscribe to world events.
 
 ## Rendering (`src/components/aquarium`, `src/three`)
 

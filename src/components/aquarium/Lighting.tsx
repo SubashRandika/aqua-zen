@@ -14,9 +14,9 @@ const WATER_VISIBILITY = 1.9
 
 /**
  * The aquarium's light rig, driven every frame by the simulation's live
- * lighting profile: the fixture above the tank (key light, with shadows),
- * a hemisphere fill for light scattered in the water, moonlight LEDs for
- * night, and underwater fog that gives the tank depth.
+ * lighting profile: a key light from above (daylight and the tank light,
+ * with shadows), a hemisphere fill for light scattered in the water,
+ * moonlight LEDs for night, and underwater fog that gives the tank depth.
  */
 export function Lighting() {
 	const world = useWorld()
@@ -41,7 +41,7 @@ export function Lighting() {
 		light.target.updateMatrixWorld()
 	}, [])
 
-	useFrame(({ camera }) => {
+	useFrame(({ camera, gl }) => {
 		const profile = world.lighting.current
 		const reveal = sceneReveal.value
 		if (key.current) {
@@ -63,6 +63,7 @@ export function Lighting() {
 		fog.far = toGlass + WATER_VISIBILITY
 		fog.color.setRGB(...profile.waterColor)
 		scene.environmentIntensity = profile.environmentIntensity
+		gl.toneMappingExposure = profile.exposure
 		sharedUniforms.uCausticIntensity.value = profile.causticIntensity * reveal
 	})
 

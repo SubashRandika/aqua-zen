@@ -25,8 +25,9 @@ function formatClock(hour: number): string {
 
 /**
  * The aquarium's light controller, as a hairline: a single line for the
- * day with a dot at the simulated hour — warm while the lamp is on, pale
- * blue under moonlight. Updated once a second, never per frame.
+ * day with a dot at the simulated hour — warm while it is light (daylight
+ * or the tank light), pale blue under moonlight. Updated once a second,
+ * never per frame.
  */
 export function DayTimeline({ world }: { world: AquariumWorld }) {
 	const phase = useSessionStore((s) => s.phase)
@@ -48,8 +49,8 @@ export function DayTimeline({ world }: { world: AquariumWorld }) {
 		mode === "auto"
 			? `${PHASE_LABEL[phase]} · ${formatClock(hour)}`
 			: mode === "day"
-				? "Lights on"
-				: "Moonlight"
+				? "Daylight"
+				: "Night"
 
 	return (
 		<div

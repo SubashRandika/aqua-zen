@@ -11,7 +11,16 @@ import type { AquariumWorld } from "@/simulation/core/World"
 import { useSessionStore, type Panel } from "@/store/sessionStore"
 import { useSettingsStore } from "@/store/settingsStore"
 import { DayTimeline } from "./DayTimeline"
-import { AutoIcon, CameraIcon, FeedIcon, MoonIcon, SettingsIcon, SoundIcon, SunIcon } from "./Icons"
+import {
+	AutoIcon,
+	CameraIcon,
+	FeedIcon,
+	MoonIcon,
+	SettingsIcon,
+	SoundIcon,
+	SunIcon,
+	TankLightIcon,
+} from "./Icons"
 import { CameraPanel, SettingsPanel, SoundPanel } from "./panels"
 import { cx, DockButton } from "./primitives"
 
@@ -64,6 +73,24 @@ function LightModeSwitch() {
 				)
 			})}
 		</div>
+	)
+}
+
+function TankLightButton() {
+	const on = useSettingsStore((s) => s.tankLight)
+	const setTankLight = useSettingsStore((s) => s.setTankLight)
+	return (
+		<DockButton
+			icon={
+				<span className={cx("transition-colors duration-500", on && "text-lamp")}>
+					<TankLightIcon on={on} />
+				</span>
+			}
+			label="Tank light"
+			active={on}
+			aria-pressed={on}
+			onClick={() => setTankLight(!on)}
+		/>
 	)
 }
 
@@ -211,6 +238,7 @@ export function ControlDock({ world }: { world: AquariumWorld }) {
 
 				<div className="glass-panel flex items-center gap-0.5 rounded-full p-1">
 					<LightModeSwitch />
+					<TankLightButton />
 					<span aria-hidden className="bg-hairline mx-1 h-5 w-px" />
 					<DockButton
 						icon={<FeedIcon />}

@@ -19,6 +19,7 @@ export interface SettingsActions {
 	setMusic: (enabled: boolean) => void
 	setVolume: (volume: number) => void
 	setLightMode: (mode: LightMode) => void
+	setTankLight: (on: boolean) => void
 	setCycleMinutes: (minutes: CycleMinutes) => void
 	setAquariumHour: (hour: number) => void
 	setQuality: (quality: QualitySetting) => void
@@ -44,6 +45,7 @@ export const useSettingsStore = create<SettingsState>()(
 			setVolume: (volume) =>
 				set((s) => ({ audio: { ...s.audio, volume: Math.min(1, Math.max(0, volume)) } })),
 			setLightMode: (lightMode) => set({ lightMode }),
+			setTankLight: (tankLight) => set({ tankLight }),
 			setCycleMinutes: (cycleMinutes) => set({ cycleMinutes }),
 			setAquariumHour: (aquariumHour) => set({ aquariumHour }),
 			setQuality: (quality) => set({ quality }),
@@ -63,6 +65,7 @@ export const useSettingsStore = create<SettingsState>()(
 			partialize: (state): PersistedSettings => ({
 				audio: state.audio,
 				lightMode: state.lightMode,
+				tankLight: state.tankLight,
 				cycleMinutes: state.cycleMinutes,
 				aquariumHour: state.aquariumHour,
 				quality: state.quality,

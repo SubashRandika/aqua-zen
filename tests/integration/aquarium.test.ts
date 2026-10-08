@@ -182,4 +182,55 @@ describe("day/night behaviour", () => {
 		simulate(world, 15)
 		expect(world.lighting.current.daylight).toBeLessThan(0.1)
 	})
+
+	it("Day turns the tank light on and Night turns it off", () => {
+		const world = createWorld({ lightMode: "auto", hour: 2 })
+		expect(world.lighting.tankLight.on).toBe(false)
+		world.setLightMode("day")
+		expect(world.lighting.tankLight.on).toBe(true)
+		world.setLightMode("night")
+		expect(world.lighting.tankLight.on).toBe(false)
+		// It can still be switched on by hand at night, and fades up rather than snapping.
+		world.setTankLight(true)
+		world.update(1 / 60)
+		expect(world.lighting.tankLight.level).toBeLessThan(0.05)
+		simulate(world, 3)
+		expect(world.lighting.tankLight.level).toBe(1)
+	})
+
+	it("in Auto the timer switches the light, and a switch by hand holds until its next change", () => {
+		// 12 real minutes per day: one simulated hour every 30 seconds.
+		const world = createWorld({ hour: 7, cycleMinutes: 12, lightMode: "auto" })
+		const changes: Array<{ on: boolean; cause: string }> = []
+		world.events.on("tank-light:changed", ({ on, cause }) => changes.push({ on, cause }))
+		expect(world.lighting.tankLight.on).toBe(false)
+		simulate(world, 30) // 08:00, past the timer's morning switch
+		expect(world.lighting.tankLight.on).toBe(true)
+		expect(changes).toEqual([{ on: true, cause: "timer" }])
+
+		world.setTankLight(false)
+		simulate(world, 60) // 10:00, still off as the user left it
+		expect(world.lighting.tankLight.on).toBe(false)
+
+		simulate(world, 30 * 13) // 23:00, after the timer's evening switch
+		expect(world.lighting.tankLight.on).toBe(false)
+		// Already off by hand, so the evening switch had nothing to do.
+		expect(changes.map((c) => c.cause)).toEqual(["timer", "manual"])
+	})
+
+	it("switching the tank light on at night wakes the fish", () => {
+		const dark = createWorld({ lightMode: "night", tankLight: false })
+		const lit = createWorld({ lightMode: "night", tankLight: true })
+		simulate(dark, 60)
+		simulate(lit, 60)
+		let darkResting = 0
+		let litResting = 0
+		for (let i = 0; i < 30; i++) {
+			simulate(dark, 1)
+			simulate(lit, 1)
+			darkResting += countStates(dark, ["resting"])
+			litResting += countStates(lit, ["resting"])
+		}
+		expect(litResting).toBeLessThan(darkResting * 0.7)
+	})
 })

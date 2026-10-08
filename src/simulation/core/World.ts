@@ -6,6 +6,11 @@ import type { BehaviorContext } from "../behaviors/context"
 import { AquariumClock, LightingController } from "../environment/dayNight"
 import { createScapeLayout, type ScapeLayout } from "../environment/scapeLayout"
 import { substrateHeight } from "../environment/substrate"
+import {
+	isTankLightScheduled,
+	tankLightForMode,
+	tankLightRampSeconds,
+} from "../environment/tankLight"
 import { FoodManager } from "../feeding/FoodManager"
 import { FishManager } from "../fish/FishManager"
 import type { FishSpeciesDefinition } from "../fish/types"
@@ -23,6 +28,8 @@ export interface WorldOptions {
 	hour?: number
 	cycleMinutes?: number
 	lightMode?: LightMode
+	/** Whether the tank light starts on. Defaults to what the light mode implies. */
+	tankLight?: boolean
 }
 
 /** Longest step the simulation integrates at once; longer frames are split. */
@@ -56,6 +63,8 @@ export class AquariumWorld {
 	/** Seconds of simulated time since the world was created. */
 	elapsed = 0
 	private phase: DayPhase
+	/** The tank light timer's last state, so Auto mode switches only when it changes. */
+	private timerOn: boolean
 	private readonly context: BehaviorContext
 	private readonly cameraPosition = new Vector3()
 	private hasCamera = false
@@ -70,8 +79,14 @@ export class AquariumWorld {
 			options.hour ?? DAY_CYCLE.initialHour,
 			options.cycleMinutes ?? DAY_CYCLE.defaultCycleMinutes,
 		)
-		this.lighting = new LightingController(this.clock.hour, options.lightMode ?? "auto")
+		const lightMode = options.lightMode ?? "auto"
+		this.lighting = new LightingController(
+			this.clock.hour,
+			lightMode,
+			options.tankLight ?? tankLightForMode(lightMode, this.clock.hour),
+		)
 		this.phase = this.clock.phase
+		this.timerOn = isTankLightScheduled(this.clock.hour)
 		this.food = new FoodManager(this.random)
 		this.fish = new FishManager(this.random, options.species ?? SPECIES)
 		this.fish.setPopulation(options.populationDensity ?? 1, this.spawnOptions())
@@ -122,7 +137,20 @@ export class AquariumWorld {
 				}
 			}),
 			bus.on("glass:hover", (event) => this.stimuli.setHover(event.point, this.elapsed)),
-			bus.on("light:changed", (event) => this.lighting.setMode(event.mode)),
+			bus.on("light:changed", (event) => {
+				this.lighting.setMode(event.mode)
+				// Day brings the tank light on and Night turns it off; Auto hands it back to its timer.
+				const on = tankLightForMode(event.mode, this.clock.hour)
+				if (on !== this.lighting.tankLight.on) {
+					bus.emit({ type: "tank-light:changed", on, cause: "mode" })
+				}
+			}),
+			bus.on("tank-light:changed", (event) =>
+				this.lighting.tankLight.switch(
+					event.on,
+					tankLightRampSeconds(event.cause, this.clock.hoursPerSecond),
+				),
+			),
 		)
 	}
 
@@ -146,6 +174,12 @@ export class AquariumWorld {
 	setLightMode(mode: LightMode): void {
 		if (mode === this.lighting.mode) return
 		this.events.emit({ type: "light:changed", mode })
+	}
+
+	/** Switches the tank light by hand. In Auto mode this holds until the timer next switches. */
+	setTankLight(on: boolean): void {
+		if (on === this.lighting.tankLight.on) return
+		this.events.emit({ type: "tank-light:changed", on, cause: "manual" })
 	}
 
 	setCycleMinutes(minutes: number): void {
@@ -174,6 +208,7 @@ export class AquariumWorld {
 	private step(dt: number): void {
 		this.elapsed += dt
 		this.clock.update(dt)
+		this.runTankLightTimer()
 		this.lighting.update(dt, this.clock.hour)
 
 		const phase = this.clock.phase
@@ -189,6 +224,15 @@ export class AquariumWorld {
 		this.context.dt = dt
 		this.context.daylight = this.lighting.current.daylight
 		this.fish.update(this.context, this.hasCamera ? this.cameraPosition : null)
+	}
+
+	private runTankLightTimer(): void {
+		const scheduled = isTankLightScheduled(this.clock.hour)
+		if (scheduled === this.timerOn) return
+		this.timerOn = scheduled
+		if (this.lighting.mode === "auto" && scheduled !== this.lighting.tankLight.on) {
+			this.events.emit({ type: "tank-light:changed", on: scheduled, cause: "timer" })
+		}
 	}
 
 	dispose(): void {

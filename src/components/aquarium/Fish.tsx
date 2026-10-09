@@ -23,7 +23,6 @@ import type { FishGeometrySet } from "@/three/geometry/fishGeometry"
 import { createFishMaterials } from "@/three/materials/fishMaterial"
 import { useWorld } from "./WorldContext"
 
-const WORLD_UP = new Vector3(0, 1, 0)
 const FISH_FORWARD_AXIS = new Vector3(1, 0, 0)
 const forward = new Vector3()
 const side = new Vector3()
@@ -39,6 +38,7 @@ class FishLod {
 	readonly fins: InstancedMesh
 	readonly swim: InstancedBufferAttribute
 	readonly look: InstancedBufferAttribute
+	readonly identity: InstancedBufferAttribute
 	count = 0
 
 	constructor(
@@ -55,9 +55,13 @@ class FishLod {
 		this.look = new InstancedBufferAttribute(new Float32Array(capacity * 4), 4).setUsage(
 			DynamicDrawUsage,
 		)
+		this.identity = new InstancedBufferAttribute(new Float32Array(capacity * 2), 2).setUsage(
+			DynamicDrawUsage,
+		)
 		for (const g of [body, fins] as BufferGeometry[]) {
 			g.setAttribute("aSwim", this.swim)
 			g.setAttribute("aLook", this.look)
+			g.setAttribute("aIdentity", this.identity)
 		}
 		this.body = new InstancedMesh(body, materials.body, capacity)
 		this.fins = new InstancedMesh(fins, materials.fins, capacity)
@@ -76,7 +80,8 @@ class FishLod {
 	write(agent: FishAgent): void {
 		const i = this.count++
 		forward.copy(agent.heading)
-		side.crossVectors(forward, WORLD_UP)
+		// Usually world up; a pleco clinging to the glass has its back to the water instead.
+		side.crossVectors(forward, agent.up)
 		if (side.lengthSq() < 1e-6) side.set(0, 0, 1)
 		side.normalize()
 		up.crossVectors(side, forward).normalize()
@@ -96,6 +101,7 @@ class FishLod {
 			agent.finFlare,
 			clamp(agent.speed / Math.max(cruise, 1e-3), 0, 1),
 		)
+		this.identity.setXY(i, agent.seed % 1, agent.variety)
 	}
 
 	commit(): void {
@@ -104,6 +110,7 @@ class FishLod {
 		this.body.instanceMatrix.needsUpdate = true
 		this.swim.needsUpdate = true
 		this.look.needsUpdate = true
+		this.identity.needsUpdate = true
 		this.count = 0
 	}
 

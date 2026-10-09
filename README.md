@@ -1,16 +1,18 @@
 # AquaZen
 
-A calm, cinematic aquarium for your screen. Nine species of fish live their own lives among stone, driftwood and swaying plants, under a slow day and night. Nothing follows a path: every fish is an autonomous agent with its own personality, hunger, energy and fears.
+A calm, cinematic aquarium for your screen. Twelve species of fish live their own lives among stone, driftwood and swaying plants, under a slow day and night. Nothing follows a path: every fish is an autonomous agent with its own personality, hunger, energy and fears.
 
 Built with Next.js, React Three Fiber and three.js. Everything you see and hear is generated in code. There are no 3D models, textures or audio files, so there's nothing to license (see [docs/assets.md](docs/assets.md)).
 
 ## What's in the tank
 
-- **Nine species**, each configured by data: neon tetra, harlequin rasbora, zebra danio, guppy, angelfish, betta, dwarf gourami, panda corydoras and black molly. They differ in size, speed, depth, swimming style, temperament and patterning.
+- **Twelve species**, each configured by data: neon tetra, harlequin rasbora, zebra danio, guppy, angelfish, betta, dwarf gourami, panda corydoras, black molly, fantail goldfish, young koi and a bristlenose pleco. They differ in size, speed, depth, swimming style, temperament and patterning.
+- **Natural looks.** Bodies have scales that catch the light, gill covers, a lateral line, lips and eyes with a coloured iris. Fins are thin membranes over visible rays, fraying slightly at the edge. Markings follow the body's contours, and koi, goldfish and guppies each carry their own: kohaku, sanke, showa and ogon koi, red-and-white or lemon goldfish.
 - **Individual personalities.** Traits are sampled per fish along a bold–shy axis, so one neon tetra is restless and curious and another is timid and slow.
-- **Emergent behaviour.** Wandering, cruising, loose schooling, resting, hiding, grazing, territorial chases, curiosity and feeding are chosen by weighted utilities with hysteresis. Schools split, regroup and pass alarm along their members.
-- **Real swimming.** Fish steer by turning a heading at limited rates; they can't strafe. Tetras and danios swim in bursts and glides, corydoras hop along the bottom, and the body wave, tail beat and fin sculling follow speed and turning.
-- **Feeding.** Flakes float, soak, flutter down in the current and settle. Fish notice them at different moments, approach from different sides, compete for flakes, eat in bites and drift back to normal life.
+- **Emergent behaviour.** Wandering, cruising, loose schooling, resting, hiding, foraging, territorial chases, curiosity and feeding are chosen by weighted utilities with hysteresis. Schools split, regroup and pass alarm along their members.
+- **Foraging between meals.** Goldfish, koi and corydoras pick over the substrate nose-down in little darts. The pleco, the tank's cleaner, holds on to the glass, stones, wood and substrate with its sucker mouth and grazes in slow shuffles, so you often see its belly and mouth disc against the front glass.
+- **Real swimming.** Fish steer by turning a heading; they can't strafe. Turns have momentum, building up and easing off, and the body curves into a turn just before the heading follows. Tetras and danios swim in bursts and glides and turn with a kick of the tail, corydoras and plecos hop along the bottom and settle when they stop, and the body wave, tail beat and fin sculling follow speed and turning.
+- **Feeding.** A pinch is mixed flake food with a few sinking pellets for the bottom feeders. Flakes float flat and drift together on the surface film, soak, then rock down like falling leaves and settle; bitten flakes shed crumbs. Fish notice the food at different moments, approach from different sides, compete for it, eat in bites and drift back to normal life.
 - **Glass interaction.** A tap startles shy fish, and the alarm spreads through schools. Curious fish come to investigate afterwards. Rest a finger on the glass and the bold ones come close.
 - **Day and night.** A simulated clock (or your local time) drives the room's light and the fish's rhythm: diurnal fish rest and lose colour at night, while corydoras become more active.
 - **Tank light.** The LED light above the tank runs on a timer, like a real aquarium's, and you can switch it on or off whenever you like. Switch it on at night and the fish wake up.
@@ -63,11 +65,12 @@ Quality has four tiers plus **Auto**. Auto picks a starting tier from the device
 
 Measured in Chrome on an AMD Radeon 860M integrated GPU at 1600×900:
 
-| Tier  | Fish | FPS | Draw calls / frame | Triangles / frame |
-| ----- | ---- | --- | ------------------ | ----------------- |
-| Low   | 31   | 60  | 69                 | 76k               |
-| High  | 53   | 60  | 104                | 179k              |
-| Ultra | 69   | 42  | 108                | 274k              |
+| Tier   | Fish | FPS | Draw calls / frame | Triangles / frame |
+| ------ | ---- | --- | ------------------ | ----------------- |
+| Low    | 35   | 60  | 78                 | 78k               |
+| Medium | 47   | 60  | 104                | 141k              |
+| High   | 58   | 59  | 120                | 200k              |
+| Ultra  | 76   | 49  | 116                | 312k              |
 
 The main techniques:
 

@@ -19,6 +19,7 @@ import {
 import { agentActivity } from "./activity"
 import type { BehaviorContext, Perception } from "./context"
 import { bestFood } from "./decision"
+import { steerForaging } from "./forage"
 
 /** Per-state tuning of the shared steering layers. */
 interface SteeringWeights {
@@ -69,6 +70,8 @@ export function steerAgent(
 	const p = agent.personality
 	const activity = agentActivity(agent, ctx.daylight)
 	const isBottomDweller = movement.swimStyle === "bottomHop"
+	// Fish picking over the substrate are allowed right down to it, nose first.
+	const pecking = agent.state === "foraging" && species.feeding.forage?.style === "peck"
 
 	// Smooth per-fish noise channels — the source of unpredictability.
 	const noiseTime = ctx.time * (0.1 + 0.12 * p.wanderlust)
@@ -291,6 +294,20 @@ export function steerAgent(
 			w.urgency = 1
 			break
 		}
+		case "foraging": {
+			w.speed = steerForaging(agent, ctx, desire)
+			w.depth = 0
+			w.flock *= 0.3
+			w.softObstacles = 0
+			w.wander = agent.cling ? 0 : 0.3
+			w.wanderAmount *= 0.5
+			if (agent.cling) {
+				// Holding on: nothing else steers a grazer off its surface.
+				agent.targetSpeed = clamp(w.speed, 0, movement.cruiseSpeed)
+				return 0.2
+			}
+			break
+		}
 		case "territorial": {
 			const intruder = ctx.agents.get(agent.targetFishId)
 			if (!intruder) {
@@ -324,6 +341,16 @@ export function steerAgent(
 			const strength = clamp((Math.abs(dy) - band) / 0.08, 0, 1) * (isBottomDweller ? 1.6 : 1)
 			desire.y += Math.sign(dy) * strength * w.depth
 		}
+	}
+
+	// Bottom dwellers level out along the substrate instead of nosing into it.
+	if (
+		isBottomDweller &&
+		!pecking &&
+		agent.heading.y < -0.1 &&
+		agent.position.y - floor < agent.radius * 1.5
+	) {
+		desire.y += -agent.heading.y * 1.2
 	}
 
 	// Separation from everyone, schooling with schoolmates.
@@ -379,8 +406,12 @@ export function steerAgent(
 	lookAhead
 		.copy(agent.position)
 		.addScaledVector(agent.heading, agent.speed * 0.5 + agent.bodyLength * 0.5)
-	for (const obstacle of ctx.scape.obstacles) {
+	const approaching = agent.state === "foraging" ? agent.forageSurface : null
+	for (let i = 0; i < ctx.scape.obstacles.length; i++) {
+		const obstacle = ctx.scape.obstacles[i]!
 		if (obstacle.soft && w.softObstacles <= 0) continue
+		// A grazer heading for a stone or branch shouldn't shy away from it.
+		if (approaching?.kind === "obstacle" && approaching.obstacle === i) continue
 		const distance = obstacleDistance(obstacle, lookAhead, normal)
 		const range = obstacle.soft ? 0.03 : agent.bodyLength * 1.2 + 0.03
 		if (distance > range) continue
@@ -396,7 +427,7 @@ export function steerAgent(
 	fishBounds.maxX = ctx.bounds.maxX - agent.radius
 	fishBounds.minZ = ctx.bounds.minZ + agent.radius
 	fishBounds.maxZ = ctx.bounds.maxZ - agent.radius
-	fishBounds.minY = isBottomDweller ? floor - margin * 2 : floor + agent.radius
+	fishBounds.minY = isBottomDweller || pecking ? floor - margin * 2 : floor + agent.radius
 	fishBounds.maxY = ctx.surfaceY - agent.radius
 	containment(
 		agent.position,
@@ -406,7 +437,9 @@ export function steerAgent(
 		margin,
 		tmp,
 	)
-	desire.addScaledVector(tmp, 2.8)
+	// A grazer heading for the glass lets it come close.
+	const toGlass = approaching?.kind === "glass" ? agent.position.distanceTo(agent.target) : Infinity
+	desire.addScaledVector(tmp, 2.8 * clamp(toGlass / 0.15, 0, 1))
 
 	agent.targetSpeed = clamp(w.speed, 0, movement.burstSpeed)
 	return w.urgency + clamp(tmp.length(), 0, 1)

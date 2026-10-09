@@ -4,9 +4,9 @@ import { speciesCount } from "@/simulation/fish/population"
 const HEX = /^#[0-9a-f]{6}$/i
 
 describe("species configuration", () => {
-	it("has 8-10 species with unique ids", () => {
+	it("has a dozen or so species with unique ids", () => {
 		expect(SPECIES.length).toBeGreaterThanOrEqual(8)
-		expect(SPECIES.length).toBeLessThanOrEqual(10)
+		expect(SPECIES.length).toBeLessThanOrEqual(16)
 		expect(new Set(SPECIES.map((s) => s.id)).size).toBe(SPECIES.length)
 		expect(SPECIES_BY_ID.size).toBe(SPECIES.length)
 	})
@@ -43,8 +43,34 @@ describe("species configuration", () => {
 			expect(profile[i]!.t).toBeGreaterThan(profile[i - 1]!.t)
 
 		const pattern = species.visual.pattern
-		for (const color of [pattern.back, pattern.belly, pattern.fin, pattern.accent, pattern.accent2])
+		for (const color of [
+			pattern.back,
+			pattern.belly,
+			pattern.fin,
+			pattern.accent,
+			pattern.accent2,
+			pattern.iris,
+		])
 			expect(color).toMatch(HEX)
+		expect(pattern.scales.size).toBeGreaterThan(0.01)
+		expect(pattern.scales.size).toBeLessThan(0.1)
+		expect(pattern.scales.contrast).toBeGreaterThanOrEqual(0)
+		expect(pattern.scales.contrast).toBeLessThanOrEqual(1)
+		if (pattern.varieties !== undefined) expect(pattern.varieties).toBeGreaterThanOrEqual(1)
+
+		const forage = species.feeding.forage
+		if (forage) {
+			expect(forage.tendency).toBeGreaterThan(0)
+			expect(forage.tendency).toBeLessThanOrEqual(1)
+		}
+	})
+
+	it("includes a goldfish, koi and a tank-cleaning pleco", () => {
+		expect(getSpecies("goldfish").visual.shape.caudal.kind).toBe("twin")
+		expect(getSpecies("koi").visual.pattern.varieties).toBeGreaterThan(1)
+		const pleco = getSpecies("bristlenose-pleco")
+		expect(pleco.feeding.forage?.style).toBe("cling")
+		expect(pleco.population.count).toBe(1)
 	})
 
 	it("gives species distinct speeds and depth preferences", () => {

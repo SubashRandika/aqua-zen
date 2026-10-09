@@ -1,6 +1,7 @@
 import { Vector3, type Vector3Like } from "three"
 import { decide, shouldDecide } from "../behaviors/decision"
 import type { BehaviorContext, Perception } from "../behaviors/context"
+import { bellyOffset, holdOnToSurface } from "../behaviors/forage"
 import { steerAgent } from "../behaviors/steer"
 import { agentActivity } from "../behaviors/activity"
 import { clamp, damp, lerp } from "../core/math"
@@ -16,11 +17,14 @@ import { populationPlan } from "./population"
 import type { FishSpeciesDefinition } from "./types"
 
 const PERCEPTION_RADIUS = 0.25
+/** Bottom dwellers are heavier than water: they settle when they stop swimming. */
+const BOTTOM_DWELLER_SINK_RATE = 0.012
 /** Near fish refresh neighbours every frame-ish; distant ones less often. */
 const PERCEPTION_INTERVAL = { near: 1 / 30, far: 1 / 10 }
 
 const desire = new Vector3()
 const flow = new Vector3()
+const WORLD_UP = new Vector3(0, 1, 0)
 const normal = new Vector3()
 const scratch = new Vector3()
 
@@ -159,12 +163,25 @@ export class FishManager {
 			const urgency = steerAgent(agent, ctx, perception, desire)
 			agent.integrate(desire, urgency, ctx.dt, this.random)
 
-			// Gentle drift with the water, stronger when the fish is holding still.
-			sampleFlow(agent.position, ctx.time, flow)
-			const drift = agent.state === "resting" ? 0.6 : 0.25
-			agent.position.addScaledVector(agent.velocity, ctx.dt).addScaledVector(flow, ctx.dt * drift)
-			this.separateOverlaps(agent, perception)
-			this.applyConstraints(agent, ctx)
+			if (agent.cling) {
+				// Holding on: no drift, and the body lies against the surface.
+				agent.position.addScaledVector(agent.velocity, ctx.dt)
+				holdOnToSurface(agent, ctx)
+				agent.wallMargin = bellyOffset(agent)
+			} else {
+				// Gentle drift with the water, stronger when the fish is holding still.
+				sampleFlow(agent.position, ctx.time, flow)
+				const drift = agent.state === "resting" ? 0.6 : 0.25
+				agent.position.addScaledVector(agent.velocity, ctx.dt).addScaledVector(flow, ctx.dt * drift)
+				if (agent.species.movement.swimStyle === "bottomHop")
+					agent.position.y -= BOTTOM_DWELLER_SINK_RATE * (1 - agent.thrust) * ctx.dt
+				agent.wallMargin = damp(agent.wallMargin, agent.radius, 1.5, ctx.dt)
+				this.separateOverlaps(agent, perception)
+				this.applyConstraints(agent, ctx)
+			}
+			// The back turns to face away from whatever the fish is clinging to.
+			agent.up.lerp(agent.cling ? agent.cling.normal : WORLD_UP, 1 - Math.exp(-5 * ctx.dt))
+			agent.up.normalize()
 		}
 	}
 
@@ -434,46 +451,31 @@ export class FishManager {
 		}
 	}
 
+	/**
+	 * Keeps the body inside the glass, above the substrate and below the
+	 * surface. Only the position is held: the fish slides along the glass
+	 * and steering turns it away, so the heading never snaps.
+	 */
 	private applyConstraints(agent: FishAgent, ctx: BehaviorContext): void {
 		const b = ctx.bounds
-		const r = agent.radius
+		const r = Math.min(agent.radius, agent.wallMargin)
 		const pos = agent.position
-		let hitWall = false
-		const clampAxis = (value: number, min: number, max: number) => {
-			if (value < min) {
-				hitWall = true
-				return min
-			}
-			if (value > max) {
-				hitWall = true
-				return max
-			}
-			return value
-		}
-		pos.x = clampAxis(pos.x, b.minX + r, b.maxX - r)
-		pos.z = clampAxis(pos.z, b.minZ + r, b.maxZ - r)
+		pos.x = clamp(pos.x, b.minX + r, b.maxX - r)
+		pos.z = clamp(pos.z, b.minZ + r, b.maxZ - r)
 		const floor = ctx.floorAt(pos.x, pos.z) + r * 0.6
-		pos.y = clampAxis(pos.y, floor, ctx.surfaceY - r * 0.8)
-		if (hitWall) {
-			// Slide along rather than stick: remove the heading's into-wall component.
-			if (pos.x <= b.minX + r && agent.heading.x < 0) agent.heading.x *= 0.2
-			if (pos.x >= b.maxX - r && agent.heading.x > 0) agent.heading.x *= 0.2
-			if (pos.z <= b.minZ + r && agent.heading.z < 0) agent.heading.z *= 0.2
-			if (pos.z >= b.maxZ - r && agent.heading.z > 0) agent.heading.z *= 0.2
-			if (pos.y <= floor && agent.heading.y < 0) agent.heading.y *= 0.2
-			if (pos.y >= ctx.surfaceY - r * 0.8 && agent.heading.y > 0) agent.heading.y *= 0.2
-			if (agent.heading.lengthSq() < 1e-6) agent.heading.set(1, 0, 0)
-			agent.heading.normalize()
-			agent.limitPitch()
-		}
-		this.pushOutOfObstacles(agent, ctx.scape)
+		pos.y = clamp(pos.y, floor, ctx.surfaceY - r * 0.8)
+		this.pushOutOfObstacles(agent, ctx.scape, r)
 	}
 
-	private pushOutOfObstacles(agent: FishAgent, scape: ScapeLayout): void {
+	private pushOutOfObstacles(
+		agent: FishAgent,
+		scape: ScapeLayout,
+		radius: number = agent.radius,
+	): void {
 		for (const obstacle of scape.obstacles) {
 			if (obstacle.soft) continue
 			const distance = obstacleDistance(obstacle, agent.position, normal)
-			const penetration = agent.radius * 0.8 - distance
+			const penetration = radius * 0.8 - distance
 			if (penetration > 0) agent.position.addScaledVector(normal, penetration)
 		}
 	}

@@ -7,46 +7,73 @@ import { substrateHeight } from "../environment/substrate"
 
 export type FoodPhase = "floating" | "sinking" | "settled"
 
+/**
+ * Flakes float, soak and flutter down; sinking pellets drop quickly to the
+ * bottom feeders; crumbs are the scraps torn from a flake when it is bitten.
+ */
+export type FoodKind = "flake" | "pellet" | "crumb"
+
 export interface FoodParticle {
 	id: number
+	kind: FoodKind
 	position: Vector3
 	velocity: Vector3
 	phase: FoodPhase
 	age: number
-	/** Seconds the flake stays on the surface before it soaks through. */
+	/** Seconds the food stays on the surface before it soaks through. */
 	floatTime: number
 	/** Seconds since settling on the substrate. */
 	settledAge: number
 	terminalVelocity: number
-	flutterPhase: number
-	flutterRate: number
+	/** 0 dry → 1 soaked. Wet food darkens. */
+	wetness: number
+	/** Falling-leaf swing: phase, rate (rad/s), horizontal speed and direction. */
+	swingPhase: number
+	swingRate: number
+	swingSpeed: number
+	swingHeading: number
+	/** Current tilt of a sinking flake, in radians, towards `swingHeading`. */
+	tilt: number
+	/** Fixed orientation about the vertical, and tumbling for pellets. */
+	yaw: number
+	spin: number
 	/** Remaining food, 0..1. Fish take bites until it is gone. */
 	amount: number
 	/** Number of fish currently heading for this particle. */
 	claims: number
 	/** Visual size multiplier. */
 	size: number
+	/** Which flake outline and colour it uses. */
+	variant: number
 	/** 0..1, used to fade the particle out at the end of its life. */
 	opacity: number
-	spin: number
 }
 
 export const FEEDING = {
 	/** Minimum seconds between feedings — prevents flooding the tank. */
 	cooldown: 1.4,
-	maxParticles: 70,
-	flakesPerFeeding: { min: 6, max: 10 },
+	maxParticles: 90,
+	flakesPerFeeding: { min: 6, max: 9 },
+	/** A few sinking granules in every pinch, so the bottom feeders get their share. */
+	pelletsPerFeeding: { min: 2, max: 4 },
 	spreadRadius: 0.035,
 	settledLifetime: 50,
 	maxLifetime: 150,
 	fadeDuration: 3,
 	/** Amount of food removed by a single bite. */
 	biteSize: 0.35,
+	/** Chance that a bite tears loose crumbs from a flake. */
+	crumbChance: 0.55,
+	/** Floating flakes drift together on the surface film (the "Cheerios effect"). */
+	surfaceAttraction: { range: 0.03, speed: 0.004 },
+	/** Number of flake outlines and colours to choose from. */
+	variants: 8,
 } as const
 
 export type FoodZone = "surface" | "midwater" | "bottom"
 
 const flowScratch = new Vector3()
+const pull = new Vector3()
 
 export class FoodManager {
 	readonly particles: FoodParticle[] = []
@@ -63,52 +90,81 @@ export class FoodManager {
 	}
 
 	/**
-	 * Sprinkles flakes onto the water surface around (x, z).
-	 * Returns the particles created (empty during cooldown).
+	 * Sprinkles a pinch of flakes, with a few sinking pellets, onto the water
+	 * surface around (x, z). Returns the particles created (empty during cooldown).
 	 */
 	release(x: number, z: number, time: number): FoodParticle[] {
 		if (!this.canRelease(time)) return []
 		this.lastReleaseTime = time
-		const count = Math.min(
-			Math.round(
-				randomRange(this.random, FEEDING.flakesPerFeeding.min, FEEDING.flakesPerFeeding.max),
-			),
-			FEEDING.maxParticles - this.particles.length,
+		const r = this.random
+		const flakes = Math.round(
+			randomRange(r, FEEDING.flakesPerFeeding.min, FEEDING.flakesPerFeeding.max),
 		)
-		const created: FoodParticle[] = []
+		const pellets = Math.round(
+			randomRange(r, FEEDING.pelletsPerFeeding.min, FEEDING.pelletsPerFeeding.max),
+		)
 		const cx = clamp(x, TANK_INTERIOR.minX + 0.05, TANK_INTERIOR.maxX - 0.05)
 		const cz = clamp(z, TANK_INTERIOR.minZ + 0.05, TANK_INTERIOR.maxZ - 0.05)
-		for (let i = 0; i < count; i++) {
-			const angle = this.random() * Math.PI * 2
-			const radius = Math.sqrt(this.random()) * FEEDING.spreadRadius
-			const particle: FoodParticle = {
-				id: this.nextId++,
-				position: new Vector3(
+		const created: FoodParticle[] = []
+		for (let i = 0; i < flakes + pellets; i++) {
+			if (this.particles.length >= FEEDING.maxParticles) break
+			const angle = r() * Math.PI * 2
+			const radius = Math.sqrt(r()) * FEEDING.spreadRadius
+			const kind: FoodKind = i < flakes ? "flake" : "pellet"
+			const particle = this.create(
+				kind,
+				new Vector3(
 					cx + Math.cos(angle) * radius,
 					TANK_INTERIOR.surfaceY - 0.001,
 					cz + Math.sin(angle) * radius,
 				),
-				velocity: new Vector3(Math.cos(angle) * 0.01, 0, Math.sin(angle) * 0.01),
-				phase: "floating",
-				age: 0,
-				floatTime: randomRange(this.random, 0.6, 4.5),
-				settledAge: 0,
-				terminalVelocity: randomRange(this.random, 0.009, 0.02),
-				flutterPhase: this.random() * Math.PI * 2,
-				flutterRate: randomRange(this.random, 1.5, 3.5),
-				amount: 1,
-				claims: 0,
-				size: randomRange(this.random, 0.7, 1.3),
-				opacity: 1,
-				spin: this.random() * Math.PI * 2,
-			}
-			this.particles.push(particle)
+			)
+			// Scattered by the fingers that dropped them.
+			particle.velocity.set(Math.cos(angle) * 0.012, 0, Math.sin(angle) * 0.012)
 			created.push(particle)
 		}
 		return created
 	}
 
+	private create(kind: FoodKind, position: Vector3): FoodParticle {
+		const r = this.random
+		const pellet = kind === "pellet"
+		const crumb = kind === "crumb"
+		const particle: FoodParticle = {
+			id: this.nextId++,
+			kind,
+			position,
+			velocity: new Vector3(),
+			phase: crumb ? "sinking" : "floating",
+			age: 0,
+			// Pellets break the surface almost at once; flakes float until they soak through.
+			floatTime: pellet ? randomRange(r, 0.15, 0.8) : randomRange(r, 1.5, 6),
+			settledAge: 0,
+			terminalVelocity: pellet
+				? randomRange(r, 0.035, 0.055)
+				: crumb
+					? randomRange(r, 0.006, 0.012)
+					: randomRange(r, 0.009, 0.018),
+			wetness: crumb ? 1 : 0,
+			swingPhase: r() * Math.PI * 2,
+			swingRate: pellet ? randomRange(r, 4, 7) : randomRange(r, 2.2, 3.6),
+			swingSpeed: pellet ? 0.002 : crumb ? 0.006 : randomRange(r, 0.008, 0.015),
+			swingHeading: r() * Math.PI * 2,
+			tilt: 0,
+			yaw: r() * Math.PI * 2,
+			spin: r() * Math.PI * 2,
+			amount: crumb ? 0.3 : 1,
+			claims: 0,
+			size: crumb ? randomRange(r, 0.3, 0.45) : randomRange(r, 0.75, 1.25),
+			variant: Math.floor(r() * FEEDING.variants),
+			opacity: 1,
+		}
+		this.particles.push(particle)
+		return particle
+	}
+
 	update(dt: number, time: number): void {
+		this.gatherOnSurface(dt)
 		for (const particle of this.particles) {
 			particle.age += dt
 			particle.claims = 0
@@ -127,25 +183,56 @@ export class FoodManager {
 		this.removeWhere((p) => p.amount <= 0 || p.opacity <= 0)
 	}
 
+	/** Flakes floating close together are drawn into little rafts by surface tension. */
+	private gatherOnSurface(dt: number): void {
+		const { range, speed } = FEEDING.surfaceAttraction
+		for (const a of this.particles) {
+			if (a.phase !== "floating" || a.kind !== "flake") continue
+			pull.set(0, 0, 0)
+			for (const b of this.particles) {
+				if (b === a || b.phase !== "floating" || b.kind !== "flake") continue
+				const dx = b.position.x - a.position.x
+				const dz = b.position.z - a.position.z
+				const distance = Math.hypot(dx, dz)
+				// Attract within range, but don't stack flakes on top of each other.
+				if (distance > range || distance < 0.004) continue
+				const strength = 1 - distance / range
+				pull.x += (dx / distance) * strength
+				pull.z += (dz / distance) * strength
+			}
+			const length = pull.length()
+			if (length > 1e-6) a.position.addScaledVector(pull, (speed * dt) / Math.max(length, 1))
+		}
+	}
+
 	private moveParticle(particle: FoodParticle, dt: number, time: number): void {
 		sampleFlow(particle.position, time, flowScratch)
 		if (particle.phase === "floating") {
-			// Surface tension holds the flake while it drifts with the current.
+			// Surface tension holds the food flat on the water while it drifts with the current.
 			particle.velocity.lerp(flowScratch.setY(0), 1 - Math.exp(-2 * dt))
+			particle.wetness = clamp(particle.age / particle.floatTime, 0, 1) * 0.6
 			if (particle.age >= particle.floatTime) particle.phase = "sinking"
 		} else {
-			// Flakes flutter as they sink, drifting with the water.
-			const flutter = Math.sin(particle.age * particle.flutterRate + particle.flutterPhase) * 0.008
-			const targetX = flowScratch.x + flutter
-			const targetZ =
-				flowScratch.z +
-				Math.cos(particle.age * particle.flutterRate * 0.7 + particle.flutterPhase) * 0.005
-			const response = 1 - Math.exp(-3 * dt)
+			particle.wetness = Math.min(1, particle.wetness + dt * 0.08)
+			// Falling leaf: the flake swings from side to side, tipping its leading
+			// edge down mid-swing and levelling out (and slowing) as it turns back.
+			particle.swingPhase += dt * particle.swingRate
+			particle.swingHeading += dt * 0.25 * Math.sin(particle.swingPhase * 0.31 + particle.id)
+			const swing = Math.cos(particle.swingPhase)
+			const along = particle.swingSpeed * swing
+			const targetX = flowScratch.x + Math.cos(particle.swingHeading) * along
+			const targetZ = flowScratch.z + Math.sin(particle.swingHeading) * along
+			const fall =
+				particle.kind === "pellet"
+					? particle.terminalVelocity
+					: particle.terminalVelocity * (0.55 + 0.9 * swing * swing)
+			const response = 1 - Math.exp(-4 * dt)
 			particle.velocity.x += (targetX - particle.velocity.x) * response
 			particle.velocity.z += (targetZ - particle.velocity.z) * response
-			particle.velocity.y +=
-				(-particle.terminalVelocity + flowScratch.y * 0.3 - particle.velocity.y) * response
-			particle.spin += dt * particle.flutterRate * 0.6
+			particle.velocity.y += (-fall + flowScratch.y * 0.3 - particle.velocity.y) * response
+			particle.tilt = particle.kind === "pellet" ? 0 : 0.7 * swing
+			// Pellets tumble as they drop.
+			if (particle.kind === "pellet") particle.spin += dt * particle.swingRate
 		}
 		particle.position.addScaledVector(particle.velocity, dt)
 		particle.position.x = clamp(
@@ -164,16 +251,34 @@ export class FoodManager {
 		if (particle.position.y <= ground) {
 			particle.position.y = ground
 			particle.velocity.set(0, 0, 0)
+			particle.tilt = 0
 			particle.phase = "settled"
 		}
 	}
 
-	/** Removes up to `amount` of food from a particle. Returns how much was eaten. */
+	/**
+	 * Removes up to `amount` of food from a particle and returns how much was
+	 * eaten. Biting a flake sometimes tears crumbs loose, which drift down.
+	 */
 	consume(id: number, amount: number = FEEDING.biteSize): number {
 		const particle = this.particles.find((p) => p.id === id)
 		if (!particle || particle.amount <= 0) return 0
 		const eaten = Math.min(particle.amount, amount)
 		particle.amount -= eaten
+		if (
+			particle.kind === "flake" &&
+			particle.phase !== "settled" &&
+			this.random() < FEEDING.crumbChance
+		) {
+			const crumbs = 1 + Math.floor(this.random() * 2)
+			for (let i = 0; i < crumbs && this.particles.length < FEEDING.maxParticles; i++) {
+				const crumb = this.create("crumb", particle.position.clone())
+				const angle = this.random() * Math.PI * 2
+				crumb.velocity.set(Math.cos(angle) * 0.02, -0.004, Math.sin(angle) * 0.02)
+				crumb.variant = particle.variant
+				crumb.position.y = Math.min(crumb.position.y, TANK_INTERIOR.surfaceY - 0.004)
+			}
+		}
 		return eaten
 	}
 

@@ -8,6 +8,7 @@ import type { FishState } from "../fish/types"
 import { GLASS_INTERACTION } from "../interaction/GlassStimuli"
 import { agentActivity } from "./activity"
 import type { BehaviorContext, Perception } from "./context"
+import { chooseForageSpot } from "./forage"
 
 /** States a fish can choose freely. Others (startled, avoiding, feeding) are entered by events. */
 export const VOLUNTARY_STATES = [
@@ -19,6 +20,7 @@ export const VOLUNTARY_STATES = [
 	"hiding",
 	"seekingFood",
 	"territorial",
+	"foraging",
 ] as const satisfies readonly FishState[]
 
 export type VoluntaryState = (typeof VOLUNTARY_STATES)[number]
@@ -114,6 +116,18 @@ export function evaluateUtilities(
 	utilities.push({ state: "curious", score: Math.max(0, curiousScore) })
 
 	utilities.push({ state: "hiding", score: agent.fear * (0.4 + p.shyness * 1.4) })
+
+	// Picking over the bottom, or grazing algae, fills the time between meals.
+	const forage = species.feeding.forage
+	if (forage) {
+		const appetite = 0.5 + 0.7 * clamp(agent.hunger, 0, 1)
+		// A grazer that has a good hold isn't quick to let go.
+		const holding = agent.cling ? 1.8 : 1
+		utilities.push({
+			state: "foraging",
+			score: forage.tendency * appetite * lerp(0.35, 1, clamp(activity, 0, 1)) * 0.9 * holding,
+		})
+	}
 
 	if (ctx.time >= agent.foodNoticedAt) {
 		const food = bestFood(agent, ctx, perception)
@@ -287,6 +301,15 @@ export function enterState(
 			agent.setState(state, ctx.time, randomRange(r, 4, 12) * lerp(0.6, 1.6, p.shyness))
 			return
 		}
+		case "foraging": {
+			// After a stint on one patch, let go and move on to the next.
+			agent.cling = null
+			const surface = chooseForageSpot(agent, ctx)
+			const clinging = surface !== null
+			agent.setState(state, ctx.time, clinging ? randomRange(r, 25, 70) : randomRange(r, 6, 16))
+			agent.forageSurface = surface
+			return
+		}
 		case "seekingFood": {
 			const food = bestFood(agent, ctx, perception)
 			if (!food) {
@@ -322,8 +345,19 @@ export function enterState(
 }
 
 /** Whether the fish should make a fresh decision now. */
+/** Seconds a grazer keeps heading for its chosen surface before reconsidering. */
+const FORAGE_APPROACH_LIMIT = 30
+
 export function shouldDecide(agent: FishAgent, ctx: BehaviorContext): boolean {
 	if (COMMITTED_STATES.has(agent.state) && agent.stateTime < agent.stateDuration) return false
+	// A grazer on its way to a patch of algae gets there before changing its mind.
+	if (
+		agent.state === "foraging" &&
+		agent.forageSurface &&
+		!agent.cling &&
+		agent.stateTime < FORAGE_APPROACH_LIMIT
+	)
+		return false
 	if (agent.stateTime >= agent.stateDuration) return true
 	return ctx.time >= agent.nextDecisionAt
 }

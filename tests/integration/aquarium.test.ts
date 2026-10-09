@@ -1,5 +1,7 @@
+import { Vector3 } from "three"
 import { FRONT_GLASS_Z, TANK_INTERIOR } from "@/config/tank"
 import { AquariumWorld } from "@/simulation/core/World"
+import { substrateHeight } from "@/simulation/environment/substrate"
 import type { FishState } from "@/simulation/fish/types"
 
 const DT = 1 / 30
@@ -57,6 +59,80 @@ describe("aquarium simulation", () => {
 			neons.some((m) => m !== n && m.position.distanceTo(n.position) < 0.15),
 		)
 		expect(near.length / neons.length).toBeGreaterThan(0.6)
+	})
+})
+
+describe("natural movement", () => {
+	it("turns smoothly: the heading never jumps, even at the glass or the bottom", () => {
+		const world = createWorld()
+		const previous = new Map<number, Vector3>()
+		let largestStep = 0
+		let glideTurns = 0
+		let turns = 0
+		simulate(world, 90, () => {
+			for (const agent of world.fish.agents) {
+				const before = previous.get(agent.id)
+				if (before && agent.state !== "startled" && !agent.cling) {
+					const step = before.angleTo(agent.heading)
+					largestStep = Math.max(largestStep, step)
+					if (agent.species.movement.swimStyle === "burstGlide" && step / DT > 1) {
+						turns++
+						if (agent.thrust < 0.2) glideTurns++
+					}
+				}
+				previous.set(agent.id, (before ?? new Vector3()).copy(agent.heading))
+			}
+		})
+		// Under ~25° per 1/30 s step: fast turns build up rather than snapping.
+		expect(largestStep).toBeLessThan(0.45)
+		// Burst-and-glide swimmers turn with a kick of the tail, not while coasting.
+		expect(glideTurns / Math.max(turns, 1)).toBeLessThan(0.3)
+	})
+
+	it("goldfish and koi pick over the substrate nose-down", () => {
+		const world = createWorld()
+		let pecking = 0
+		simulate(world, 240, () => {
+			for (const agent of world.fish.agents) {
+				if (agent.species.id !== "goldfish" && agent.species.id !== "koi") continue
+				if (agent.state !== "foraging" || !agent.arrived) continue
+				const floor = substrateHeight(agent.position.x, agent.position.z)
+				if (agent.heading.y < -0.25 && agent.position.y - floor < agent.bodyLength) pecking++
+			}
+		})
+		expect(pecking).toBeGreaterThan(0)
+	})
+
+	it("the pleco grazes while holding on to surfaces, and moves between patches", () => {
+		const world = createWorld({ lightMode: "night" })
+		const pleco = world.fish.agents.find((a) => a.species.id === "bristlenose-pleco")!
+		let attachedSeconds = 0
+		let attachments = 0
+		let wasAttached = false
+		let heldFor = 0
+		let backAgainstSurface = 1
+		simulate(world, 300, () => {
+			if (pleco.cling) {
+				attachedSeconds += DT
+				if (!wasAttached) {
+					attachments++
+					heldFor = 0
+				}
+				heldFor += DT
+				// Once settled, its back faces away from the surface it holds.
+				if (heldFor > 2 && pleco.cling.kind === "glass")
+					backAgainstSurface = Math.min(backAgainstSurface, pleco.up.dot(pleco.cling.normal))
+			}
+			wasAttached = pleco.cling !== null
+			const b = world.bounds
+			expect(pleco.position.x).toBeGreaterThanOrEqual(b.minX)
+			expect(pleco.position.x).toBeLessThanOrEqual(b.maxX)
+			expect(pleco.position.z).toBeGreaterThanOrEqual(b.minZ)
+			expect(pleco.position.z).toBeLessThanOrEqual(b.maxZ)
+		})
+		expect(attachedSeconds).toBeGreaterThan(60)
+		expect(attachments).toBeGreaterThan(1)
+		expect(backAgainstSurface).toBeGreaterThan(0.9)
 	})
 })
 

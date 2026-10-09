@@ -9,6 +9,7 @@ import { GLASS_INTERACTION } from "../interaction/GlassStimuli"
 import { agentActivity } from "./activity"
 import type { BehaviorContext, Perception } from "./context"
 import { chooseForageSpot } from "./forage"
+import { livesNearBottom } from "./habitat"
 
 /** States a fish can choose freely. Others (startled, avoiding, feeding) are entered by events. */
 export const VOLUNTARY_STATES = [
@@ -195,7 +196,7 @@ export function chooseState(
 }
 
 function restSpotKinds(agent: FishAgent): RestSpotKind[] {
-	if (agent.species.movement.swimStyle === "bottomHop") return ["bottom"]
+	if (livesNearBottom(agent.species)) return ["bottom"]
 	if (agent.species.id === "betta") return ["leaf", "cover"]
 	if (agent.personality.shyness > 0.55) return ["cover", "midwater"]
 	return ["midwater", "cover", "leaf"]
@@ -349,6 +350,8 @@ export function enterState(
 const FORAGE_APPROACH_LIMIT = 30
 
 export function shouldDecide(agent: FishAgent, ctx: BehaviorContext): boolean {
+	// A fish being taken out of the tank only heads for cover.
+	if (agent.leaving) return false
 	if (COMMITTED_STATES.has(agent.state) && agent.stateTime < agent.stateDuration) return false
 	// A grazer on its way to a patch of algae gets there before changing its mind.
 	if (

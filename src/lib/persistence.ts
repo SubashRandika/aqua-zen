@@ -1,11 +1,13 @@
 import { DAY_CYCLE, type CycleMinutes } from "@/config/dayNight"
 import type { QualitySetting } from "@/config/quality"
+import { SPECIES, STARTER_ROSTER } from "@/config/species"
 import type { LightMode } from "@/simulation/core/events"
 import { tankLightForMode } from "@/simulation/environment/tankLight"
+import { clampGroupSize, type Roster } from "@/simulation/fish/population"
 
 export const SETTINGS_STORAGE_KEY = "aquazen:settings"
 /** Bump when the persisted shape changes, and add a migration below. */
-export const SETTINGS_VERSION = 2
+export const SETTINGS_VERSION = 3
 
 export type CameraMode = "window" | "explore"
 export type ReducedMotionPreference = "system" | "on" | "off"
@@ -15,6 +17,8 @@ export interface PersistedSettings {
 	lightMode: LightMode
 	/** The light above the tank, switched by hand or by its timer in Auto mode. */
 	tankLight: boolean
+	/** The fish kept in the tank: group size by species id. */
+	roster: Roster
 	cycleMinutes: CycleMinutes
 	/** Last known simulated hour, so the aquarium resumes where it was. */
 	aquariumHour: number
@@ -27,6 +31,7 @@ export const DEFAULT_SETTINGS: PersistedSettings = {
 	audio: { sound: false, music: false, volume: 0.6 },
 	lightMode: "auto",
 	tankLight: tankLightForMode("auto", DAY_CYCLE.initialHour),
+	roster: STARTER_ROSTER,
 	cycleMinutes: DAY_CYCLE.defaultCycleMinutes,
 	aquariumHour: DAY_CYCLE.initialHour,
 	quality: "auto",
@@ -49,6 +54,8 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = {
 		const hour = pickNumber(state.aquariumHour, DEFAULT_SETTINGS.aquariumHour, 0, 24)
 		return { ...state, tankLight: tankLightForMode(mode, hour) }
 	},
+	// v3 lets the owner choose the fish. Existing tanks keep the fish they had.
+	2: (state) => ({ ...state, roster: STARTER_ROSTER }),
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -73,6 +80,21 @@ function pickOption<T extends string | number>(
 	return options.includes(value as T) ? (value as T) : fallback
 }
 
+/**
+ * Keeps known species at a group size the tank allows. Unknown species
+ * (perhaps from a newer version) are dropped; an empty roster is an empty tank.
+ */
+function pickRoster(value: unknown, fallback: Roster): Roster {
+	if (!isRecord(value)) return fallback
+	const roster: Record<string, number> = {}
+	for (const species of SPECIES) {
+		const count = value[species.id]
+		if (typeof count === "number" && Number.isFinite(count) && count > 0)
+			roster[species.id] = clampGroupSize(species, count)
+	}
+	return roster
+}
+
 /** Validates arbitrary stored data, falling back to defaults field by field. */
 export function sanitizeSettings(raw: unknown): PersistedSettings {
 	const state = isRecord(raw) ? raw : {}
@@ -88,6 +110,7 @@ export function sanitizeSettings(raw: unknown): PersistedSettings {
 		},
 		lightMode: pickOption(state.lightMode, LIGHT_MODES, d.lightMode),
 		tankLight: pickBoolean(state.tankLight, d.tankLight),
+		roster: pickRoster(state.roster, d.roster),
 		cycleMinutes: pickOption(state.cycleMinutes, DAY_CYCLE.cycleOptions, d.cycleMinutes),
 		aquariumHour: pickNumber(state.aquariumHour, d.aquariumHour, 0, 23.999),
 		quality: pickOption(

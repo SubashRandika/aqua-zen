@@ -2,6 +2,7 @@ import { BufferGeometry, Float32BufferAttribute, Vector3 } from "three"
 import type {
 	BarbelSet,
 	BodyProfilePoint,
+	FinSpan,
 	FishShapeDefinition,
 	PairedFin,
 } from "@/simulation/fish/types"
@@ -263,11 +264,37 @@ function addFinStrip(
 	}
 }
 
+/**
+ * A point on a dorsal (`direction` 1) or anal (-1) fin: `u` runs along its
+ * base from front to back, `flex` from the base to the free edge.
+ */
+export function medianFinPoint(
+	shape: FishShapeDefinition,
+	span: FinSpan,
+	direction: 1 | -1,
+	u: number,
+	flex: number,
+	out: Vector3,
+): Vector3 {
+	const t = span.start + (span.end - span.start) * u
+	const profile = sampleProfile(shape.profile, t)
+	const baseY = (direction > 0 ? profile.top : -profile.bottom) * 0.92
+	// Fins rise to a peak, then taper away towards the rear, swept backwards.
+	const peak = span.peak ?? 0.35
+	const lift =
+		u < peak
+			? 0.12 + 0.88 * Math.sin((Math.PI / 2) * (u / peak)) ** 0.7
+			: Math.cos((Math.PI / 2) * ((u - peak) / (1 - peak)) * 0.92) ** 0.8
+	const height = span.height * lift
+	const x = bodyX(shape, t) - span.sweep * flex * (0.35 + 0.65 * u)
+	return out.set(x, baseY + direction * height * flex, 0)
+}
+
 function addMedianFin(
 	builder: MeshBuilder,
 	shape: FishShapeDefinition,
 	region: number,
-	span: { start: number; end: number; height: number; sweep: number; peak?: number },
+	span: FinSpan,
 	direction: 1 | -1,
 	detail: number,
 ): void {
@@ -276,20 +303,7 @@ function addMedianFin(
 		region,
 		Math.max(4, Math.round(detail * 0.5)),
 		Math.max(2, Math.round(detail * 0.25)),
-		(u, flex, out) => {
-			const t = span.start + (span.end - span.start) * u
-			const profile = sampleProfile(shape.profile, t)
-			const baseY = (direction > 0 ? profile.top : -profile.bottom) * 0.92
-			// Fins rise to a peak, then taper away towards the rear, swept backwards.
-			const peak = span.peak ?? 0.35
-			const lift =
-				u < peak
-					? 0.12 + 0.88 * Math.sin((Math.PI / 2) * (u / peak)) ** 0.7
-					: Math.cos((Math.PI / 2) * ((u - peak) / (1 - peak)) * 0.92) ** 0.8
-			const height = span.height * lift
-			const x = bodyX(shape, t) - span.sweep * flex * (0.35 + 0.65 * u)
-			return out.set(x, baseY + direction * height * flex, 0)
-		},
+		(u, flex, out) => medianFinPoint(shape, span, direction, u, flex, out),
 	)
 }
 
@@ -322,28 +336,52 @@ function caudalEdge(
 		case "truncate":
 			edgeLength = length * (0.8 + 0.2 * av * av) + fork * length * Math.max(0, av - 0.75) * 2.4
 			break
+		case "sword": {
+			// A squared-off tail whose lowest rays run on into a long blade (`fork` = its
+			// length). Rays further up the blade end sooner, so it tapers to a point.
+			const x = Math.min(1, Math.max(0, (-v - 0.4) / 0.5))
+			const sword = x * x * (3 - 2 * x)
+			edgeLength = length * (0.78 + 0.2 * av * av) + fork * length * sword
+			// It angles slightly down.
+			edgeY -= sword * fork * length * 0.08
+			break
+		}
 	}
 	return { length: edgeLength, y: edgeY }
 }
 
-function addCaudalFin(builder: MeshBuilder, shape: FishShapeDefinition, detail: number): void {
+/**
+ * A point on the tail fin as seen from the side: `u` runs from the lower
+ * lobe (0) to the upper (1), `flex` from the base to the free edge.
+ */
+export function caudalPoint(
+	shape: FishShapeDefinition,
+	u: number,
+	flex: number,
+	out: Vector3,
+): Vector3 {
 	const baseX = bodyX(shape, 1) + 0.012
 	const profile = sampleProfile(shape.profile, 1)
 	const baseHalf = (profile.top + profile.bottom) * 0.5 * 0.95
 	const baseCenter = (profile.top - profile.bottom) * 0.5
 	const length = 1 - shape.bodyLength + 0.012
 	const { kind, spread, fork } = shape.caudal
+	const v = u * 2 - 1 // -1 bottom lobe … +1 top lobe
+	const edge = caudalEdge(kind, v, length, spread, fork)
+	const baseY = baseCenter + v * baseHalf
+	// A gentle curve so the fin isn't a flat trapezoid.
+	const bow = Math.sin(flex * Math.PI) * 0.04 * length * v
+	return out.set(baseX - edge.length * flex, baseY + (edge.y - baseY) * flex ** 0.9 + bow, 0)
+}
+
+function addCaudalFin(builder: MeshBuilder, shape: FishShapeDefinition, detail: number): void {
+	const profile = sampleProfile(shape.profile, 1)
+	const baseHalf = (profile.top + profile.bottom) * 0.5 * 0.95
+	const baseCenter = (profile.top - profile.bottom) * 0.5
+	const kind = shape.caudal.kind
 	const columns = Math.max(6, Math.round(detail * 0.6))
 	const rows = Math.max(3, Math.round(detail * 0.3))
-
-	const lobe = (u: number, flex: number, out: Vector3) => {
-		const v = u * 2 - 1 // -1 bottom lobe … +1 top lobe
-		const edge = caudalEdge(kind, v, length, spread, fork)
-		const baseY = baseCenter + v * baseHalf
-		// A gentle curve so the fin isn't a flat trapezoid.
-		const bow = Math.sin(flex * Math.PI) * 0.04 * length * v
-		return out.set(baseX - edge.length * flex, baseY + (edge.y - baseY) * flex ** 0.9 + bow, 0)
-	}
+	const lobe = (u: number, flex: number, out: Vector3) => caudalPoint(shape, u, flex, out)
 
 	if (kind !== "twin") {
 		addFinStrip(builder, FISH_REGION.caudal, columns, rows, lobe)

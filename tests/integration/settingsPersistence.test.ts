@@ -19,6 +19,8 @@ describe("settings persistence", () => {
 		store.setCameraMode("explore")
 		store.setReducedEffects(true)
 		store.setAquariumHour(21.25)
+		store.setSpeciesCount("discus", 3)
+		store.setSpeciesCount("neon-tetra", 0)
 
 		const saved = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY)!)
 		expect(saved.version).toBe(SETTINGS_VERSION)
@@ -38,6 +40,9 @@ describe("settings persistence", () => {
 		expect(restored.camera.mode).toBe("explore")
 		expect(restored.accessibility.reducedEffects).toBe(true)
 		expect(restored.aquariumHour).toBeCloseTo(21.25)
+		expect(restored.roster.discus).toBe(3)
+		expect(restored.roster["neon-tetra"]).toBeUndefined()
+		expect(restored.roster.koi).toBe(2)
 	})
 
 	it("recovers gracefully from corrupted storage", async () => {

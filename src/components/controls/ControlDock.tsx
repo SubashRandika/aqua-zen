@@ -11,10 +11,12 @@ import type { AquariumWorld } from "@/simulation/core/World"
 import { useSessionStore, type Panel } from "@/store/sessionStore"
 import { useSettingsStore } from "@/store/settingsStore"
 import { DayTimeline } from "./DayTimeline"
+import { FishPanel } from "./FishPanel"
 import {
 	AutoIcon,
 	CameraIcon,
 	FeedIcon,
+	FishIcon,
 	MoonIcon,
 	SettingsIcon,
 	SoundIcon,
@@ -61,7 +63,7 @@ function LightModeSwitch() {
 						tabIndex={checked ? 0 : -1}
 						onClick={() => setMode(item.mode)}
 						className={cx(
-							"flex h-9 min-w-9 items-center justify-center gap-2 rounded-full px-2.5 text-[12.5px] transition-colors duration-300 sm:px-3",
+							"flex h-9 min-w-8 items-center justify-center gap-2 rounded-full px-2 text-[12.5px] transition-colors duration-300 min-[400px]:min-w-9 min-[400px]:px-2.5 sm:px-3",
 							checked ? "text-mist bg-white/[0.11]" : "text-mist-dim hover:text-mist",
 						)}
 					>
@@ -227,6 +229,7 @@ export function ControlDock({ world }: { world: AquariumWorld }) {
 				}}
 			>
 				<AnimatePresence mode="wait">
+					{openPanel === "fish" && <FishPanel key="fish" onClose={() => setOpenPanel(null)} />}
 					{openPanel === "sound" && <SoundPanel key="sound" onClose={() => setOpenPanel(null)} />}
 					{openPanel === "camera" && (
 						<CameraPanel key="camera" world={world} onClose={() => setOpenPanel(null)} />
@@ -246,6 +249,14 @@ export function ControlDock({ world }: { world: AquariumWorld }) {
 						active={feedArmed}
 						aria-pressed={feedArmed}
 						onClick={onFeed}
+					/>
+					<DockButton
+						icon={<FishIcon />}
+						label="Fish"
+						active={openPanel === "fish"}
+						aria-expanded={openPanel === "fish"}
+						aria-haspopup="dialog"
+						onClick={() => togglePanel("fish")}
 					/>
 					<DockButton
 						icon={<SoundIcon muted={!sound && !music} />}

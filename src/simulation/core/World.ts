@@ -1,6 +1,6 @@
 import { Vector3, type Vector3Like } from "three"
 import { DAY_CYCLE } from "@/config/dayNight"
-import { SPECIES } from "@/config/species"
+import { SPECIES, STARTER_ROSTER } from "@/config/species"
 import { TANK_INTERIOR } from "@/config/tank"
 import type { BehaviorContext } from "../behaviors/context"
 import { AquariumClock, LightingController } from "../environment/dayNight"
@@ -13,6 +13,7 @@ import {
 } from "../environment/tankLight"
 import { FoodManager } from "../feeding/FoodManager"
 import { FishManager } from "../fish/FishManager"
+import { populationPlan, type Roster } from "../fish/population"
 import type { FishSpeciesDefinition } from "../fish/types"
 import { GlassStimuli } from "../interaction/GlassStimuli"
 import type { Bounds } from "../steering/steering"
@@ -23,8 +24,10 @@ import { createRandom, type RandomSource } from "./random"
 export interface WorldOptions {
 	seed?: number
 	species?: readonly FishSpeciesDefinition[]
-	/** Population density, 1 = "high" quality. */
-	populationDensity?: number
+	/** The fish the owner keeps. Defaults to the starter tank. */
+	roster?: Roster
+	/** Most fish the quality level animates smoothly. Defaults to no limit. */
+	fishCapacity?: number
 	hour?: number
 	cycleMinutes?: number
 	lightMode?: LightMode
@@ -65,6 +68,8 @@ export class AquariumWorld {
 	private phase: DayPhase
 	/** The tank light timer's last state, so Auto mode switches only when it changes. */
 	private timerOn: boolean
+	private roster: Roster
+	private fishCapacity: number
 	private readonly context: BehaviorContext
 	private readonly cameraPosition = new Vector3()
 	private hasCamera = false
@@ -89,7 +94,9 @@ export class AquariumWorld {
 		this.timerOn = isTankLightScheduled(this.clock.hour)
 		this.food = new FoodManager(this.random)
 		this.fish = new FishManager(this.random, options.species ?? SPECIES)
-		this.fish.setPopulation(options.populationDensity ?? 1, this.spawnOptions())
+		this.roster = options.roster ?? STARTER_ROSTER
+		this.fishCapacity = options.fishCapacity ?? Number.POSITIVE_INFINITY
+		this.fish.setPopulation(this.populationPlan(), this.spawnOptions(), false)
 
 		this.context = {
 			time: 0,
@@ -107,6 +114,10 @@ export class AquariumWorld {
 			events: this.events,
 		}
 		this.subscribe()
+	}
+
+	private populationPlan() {
+		return populationPlan(this.fish.species, this.roster, this.fishCapacity)
 	}
 
 	private spawnOptions() {
@@ -186,8 +197,22 @@ export class AquariumWorld {
 		this.clock.cycleMinutes = minutes
 	}
 
-	setPopulationDensity(density: number): void {
-		this.fish.setPopulation(density, this.spawnOptions())
+	/** Changes the fish in the tank. Newcomers emerge from cover; fish taken out swim off and fade. */
+	setRoster(roster: Roster): void {
+		this.roster = roster
+		this.repopulate()
+	}
+
+	/** Limits how many fish are animated, for the quality level in use. */
+	setFishCapacity(capacity: number): void {
+		if (capacity === this.fishCapacity) return
+		this.fishCapacity = capacity
+		this.repopulate()
+	}
+
+	private repopulate(): void {
+		this.fish.setPopulation(this.populationPlan(), this.spawnOptions(), true)
+		this.events.emit({ type: "population:changed" })
 	}
 
 	setCameraPosition(position: Vector3Like): void {
@@ -223,7 +248,8 @@ export class AquariumWorld {
 		this.context.time = this.elapsed
 		this.context.dt = dt
 		this.context.daylight = this.lighting.current.daylight
-		this.fish.update(this.context, this.hasCamera ? this.cameraPosition : null)
+		const departed = this.fish.update(this.context, this.hasCamera ? this.cameraPosition : null)
+		if (departed) this.events.emit({ type: "population:changed" })
 	}
 
 	private runTankLightTimer(): void {

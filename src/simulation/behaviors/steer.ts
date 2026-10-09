@@ -20,6 +20,7 @@ import { agentActivity } from "./activity"
 import type { BehaviorContext, Perception } from "./context"
 import { bestFood } from "./decision"
 import { steerForaging } from "./forage"
+import { livesNearBottom } from "./habitat"
 
 /** Per-state tuning of the shared steering layers. */
 interface SteeringWeights {
@@ -427,7 +428,7 @@ export function steerAgent(
 	fishBounds.maxX = ctx.bounds.maxX - agent.radius
 	fishBounds.minZ = ctx.bounds.minZ + agent.radius
 	fishBounds.maxZ = ctx.bounds.maxZ - agent.radius
-	fishBounds.minY = isBottomDweller || pecking ? floor - margin * 2 : floor + agent.radius
+	fishBounds.minY = pecking || livesNearBottom(species) ? floor - margin * 2 : floor + agent.radius
 	fishBounds.maxY = ctx.surfaceY - agent.radius
 	containment(
 		agent.position,

@@ -40,6 +40,12 @@ export type PatternKind =
 	| "goldfish"
 	| "koi"
 	| "pleco"
+	| "rummyNose"
+	| "tigerBarb"
+	| "swordtail"
+	| "discus"
+	| "clownLoach"
+	| "otocinclus"
 
 /** A point on the body outline. `t` runs from the nose (0) to the tail peduncle (1). */
 export interface BodyProfilePoint {
@@ -52,8 +58,11 @@ export interface BodyProfilePoint {
 	width: number
 }
 
-/** `twin` is the split, splayed double tail of fancy goldfish. */
-export type CaudalKind = "forked" | "rounded" | "fan" | "veil" | "truncate" | "twin"
+/**
+ * `twin` is the split, splayed double tail of fancy goldfish; `sword` is a
+ * swordtail's, with the lowest rays drawn out into a long point.
+ */
+export type CaudalKind = "forked" | "rounded" | "fan" | "veil" | "truncate" | "twin" | "sword"
 
 export interface FinSpan {
 	/** Start and end along the body (0 nose → 1 peduncle). */
@@ -214,10 +223,25 @@ export interface FishSpeciesDefinition {
 		forage?: { style: "peck" | "cling"; tendency: number }
 	}
 	population: {
-		/** Number of fish at "high" quality. */
+		/** Group size when the species is added to the tank. */
 		count: number
-		/** Never fewer than this, so schooling species still school. */
+		/** Smallest group the tank keeps, so schooling species still school. */
 		minCount: number
+		/** Largest group the tank has room for. */
+		maxCount: number
+	}
+	/** How the species is listed when choosing the fish in the tank. */
+	catalog: {
+		group: SpeciesGroup
+		/** Plural for messages ("neon tetras", "koi"). */
+		plural: string
+		/** One short line about how it lives in the tank. */
+		note: string
+		/**
+		 * A small portrait for the list: body colours from back to belly, and
+		 * where any bars cross the body (0 nose → 1 tail), dark unless given a colour.
+		 */
+		swatch: { colors: readonly string[]; bars?: readonly number[]; barColor?: string }
 	}
 	visual: {
 		/** Camera distances at which to switch to lower-detail geometry. */
@@ -226,6 +250,9 @@ export interface FishSpeciesDefinition {
 		pattern: FishPatternDefinition
 	}
 }
+
+/** Where a species lives in the tank, used to group the fish list. */
+export type SpeciesGroup = "shoaling" | "openWater" | "bottom"
 
 export interface FishPersonality {
 	curiosity: number

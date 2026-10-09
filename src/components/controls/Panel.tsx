@@ -12,10 +12,13 @@ import { CloseIcon } from "./Icons"
 export function Panel({
 	title,
 	onClose,
+	wide,
 	children,
 }: {
 	title: string
 	onClose: () => void
+	/** Room for a list with controls on each row. */
+	wide?: boolean
 	children: ReactNode
 }) {
 	const titleId = useId()
@@ -36,7 +39,10 @@ export function Panel({
 			aria-modal="false"
 			aria-labelledby={titleId}
 			tabIndex={-1}
-			className="glass-panel glass-panel--solid w-full rounded-2xl px-5 pt-4 pb-3 outline-none sm:w-[340px]"
+			className={`glass-panel glass-panel--solid w-full rounded-2xl px-5 pt-4 pb-3 outline-none ${
+				// A long list of small text over the moving scene needs a steadier surface.
+				wide ? "glass-panel--dense sm:w-[400px]" : "sm:w-[340px]"
+			}`}
 			initial={{ opacity: 0, y: reducedMotion ? 0 : 8 }}
 			animate={{ opacity: 1, y: 0 }}
 			exit={{ opacity: 0, y: reducedMotion ? 0 : 6 }}

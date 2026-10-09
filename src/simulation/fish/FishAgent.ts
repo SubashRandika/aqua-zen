@@ -124,6 +124,14 @@ export class FishAgent {
 	private turnBend = 0
 	snapTimer = 0
 
+	/**
+	 * How much of the fish is drawn (0..1). A fish joining the tank fades in
+	 * as it leaves cover; one taken out swims into cover and fades away.
+	 */
+	presence = 1
+	/** Set when the owner takes this fish out of the tank. */
+	leaving = false
+
 	/** Distance to the camera, used for level of detail. */
 	cameraDistance = 1
 	/** Seconds until neighbour perception is refreshed. */

@@ -7,8 +7,11 @@ export interface QualityPreset {
 	level: QualityLevel
 	/** Device pixel ratio range; adaptive rendering moves within it. */
 	dpr: readonly [number, number]
-	/** Fish population relative to the species' configured counts. */
-	fishDensity: number
+	/**
+	 * Most fish animated at this level. A larger tank shrinks every group in
+	 * proportion; a smaller one is kept as chosen.
+	 */
+	fishCapacity: number
 	/** Geometry detail of the procedural fish (segments around / along the body). */
 	fishDetail: { radial: number; lengthwise: number }
 	shadows: boolean
@@ -32,7 +35,7 @@ export const QUALITY_PRESETS: Record<QualityLevel, QualityPreset> = {
 	ultra: {
 		level: "ultra",
 		dpr: [1, 2],
-		fishDensity: 1.25,
+		fishCapacity: 96,
 		fishDetail: { radial: 16, lengthwise: 32 },
 		shadows: true,
 		shadowMapSize: 2048,
@@ -50,7 +53,7 @@ export const QUALITY_PRESETS: Record<QualityLevel, QualityPreset> = {
 	high: {
 		level: "high",
 		dpr: [1, 1.75],
-		fishDensity: 1,
+		fishCapacity: 72,
 		fishDetail: { radial: 14, lengthwise: 28 },
 		shadows: true,
 		shadowMapSize: 1024,
@@ -68,7 +71,7 @@ export const QUALITY_PRESETS: Record<QualityLevel, QualityPreset> = {
 	medium: {
 		level: "medium",
 		dpr: [1, 1.5],
-		fishDensity: 0.75,
+		fishCapacity: 52,
 		fishDetail: { radial: 12, lengthwise: 22 },
 		shadows: true,
 		shadowMapSize: 512,
@@ -86,7 +89,7 @@ export const QUALITY_PRESETS: Record<QualityLevel, QualityPreset> = {
 	low: {
 		level: "low",
 		dpr: [0.75, 1],
-		fishDensity: 0.5,
+		fishCapacity: 36,
 		fishDetail: { radial: 10, lengthwise: 16 },
 		shadows: false,
 		shadowMapSize: 512,

@@ -17,6 +17,12 @@ const PATTERN_IDS: Record<PatternKind, number> = {
 	goldfish: 9,
 	koi: 10,
 	pleco: 11,
+	rummyNose: 12,
+	tigerBarb: 13,
+	swordtail: 14,
+	discus: 15,
+	clownLoach: 16,
+	otocinclus: 17,
 }
 
 /** Height of the mouth within the outline (-1 belly … 1 back), for drawing the lips. */
@@ -32,7 +38,7 @@ const WAVE_NUMBER = 5.2
 const FISH_VERTEX_HEADER = /* glsl */ `
 	attribute vec4 aSwim;   // tail phase, tail amplitude, turn bend, fin phase
 	attribute vec4 aLook;   // colour intensity, hue shift, fin flare, speed (0..1)
-	attribute vec2 aIdentity; // individual seed, colour variety
+	attribute vec3 aIdentity; // individual seed, colour variety, presence (fading in or out)
 	attribute vec2 aBody;   // along the body (0 nose → 1 peduncle), height in outline (-1 → 1)
 	attribute float aRegion;
 	attribute float aFlex;
@@ -45,7 +51,7 @@ const FISH_VERTEX_HEADER = /* glsl */ `
 	varying vec2 vFinUv;
 	varying vec4 vLook;
 	varying vec2 vBody;
-	varying vec2 vIdentity;
+	varying vec3 vIdentity;
 
 	float azFishWave(float s, float phase, float amplitude, float bend) {
 		float envelope = 0.06 + 0.3 * s + 0.85 * s * s;
@@ -128,7 +134,7 @@ const FISH_FRAGMENT_HEADER = /* glsl */ `
 	varying vec2 vFinUv;
 	varying vec4 vLook;
 	varying vec2 vBody;
-	varying vec2 vIdentity;
+	varying vec3 vIdentity;
 
 	vec3 azHueShift(vec3 color, float shift) {
 		const mat3 toYIQ = mat3(0.299, 0.596, 0.211, 0.587, -0.274, -0.523, 0.114, -0.322, 0.312);
@@ -200,6 +206,16 @@ const FISH_FRAGMENT_CODE = /* glsl */ `
 	float rough = 0.36;
 	float metal = 0.05;
 	float alpha = 1.0;
+	float presence = vIdentity.z;
+
+	#ifndef FISH_FINS
+		// A fish joining or leaving the tank dissolves in and out through a
+		// fine, stable dither, so the opaque body needs no sorting.
+		if (presence < 0.999) {
+			float dither = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+			if (dither >= presence) discard;
+		}
+	#endif
 
 	#ifdef FISH_FINS
 		float along = azfAlong(p.x);
@@ -263,6 +279,51 @@ const FISH_FRAGMENT_CODE = /* glsl */ `
 			float spots = smoothstep(0.7, 0.78, azfNoise(vec2(rayCoord * 1.4, vFlex * 9.0) + seed * 13.0));
 			color = mix(color, uBelly, spots * 0.8);
 			alpha = max(alpha, 0.75 * (1.0 - vFlex * 0.4));
+		} else if (uPattern == 12 && caudal) {
+			// Rummy-nose tetra: the black-and-white striped tail.
+			float black = max(azBand(vFinUv.x, 0.5, 0.07, 0.03), max(azBand(vFinUv.x, 0.15, 0.06, 0.03), azBand(vFinUv.x, 0.85, 0.06, 0.03)));
+			black *= smoothstep(0.02, 0.2, vFlex);
+			float white = (1.0 - black) * smoothstep(0.15, 0.5, vFlex);
+			color = mix(color, vec3(0.94), white * 0.75);
+			color = mix(color, accent2, black);
+			alpha = max(alpha, black * 0.85 + white * 0.45);
+		} else if (uPattern == 13) {
+			// Tiger barb: a black dorsal with a red edge, red pelvic fins, red-tipped tail lobes.
+			float edge = smoothstep(0.55, 0.95, vFlex);
+			if (vRegion > 0.5 && vRegion < 1.5) {
+				color = mix(accent, accent2, edge);
+				alpha = max(alpha, 0.85);
+			} else if (vRegion > 4.5 && vRegion < 5.5) {
+				color = mix(color, accent2, 0.8);
+				alpha = max(alpha, 0.7);
+			} else if (caudal) {
+				color = mix(color, accent2, edge * smoothstep(0.2, 0.45, abs(vFinUv.x - 0.5)) * 0.85);
+			}
+		} else if (uPattern == 14) {
+			// Swordtail: the sword is yellow-orange between black edges; the red form has red fins.
+			if (variety > 0.5) color = mix(color, accent, 0.75);
+			if (caudal) {
+				float sword = 1.0 - smoothstep(0.24, 0.3, vFinUv.x);
+				float rim = max(1.0 - smoothstep(0.0, 0.06, vFinUv.x), azBand(vFinUv.x, 0.25, 0.03, 0.025));
+				vec3 blade = variety > 0.5 ? accent * 1.1 : vec3(0.95, 0.7, 0.22);
+				color = mix(color, mix(blade, accent2, rim), sword * smoothstep(0.05, 0.25, vFlex));
+				alpha = max(alpha, sword * 0.9);
+			}
+		} else if (uPattern == 15 && (median || caudal)) {
+			// Discus: the body's turquoise lines run on into the fins, which end in a red-orange margin.
+			float lines = smoothstep(0.6, 0.9, 0.5 + 0.5 * sin(p.y * 110.0 + azfNoise(vec2(vFinUv.x * 6.0, seed * 9.0)) * 2.0));
+			color = mix(color, accent, lines * 0.55 * (1.0 - smoothstep(0.65, 0.85, vFlex)));
+			color = mix(color, accent2, smoothstep(0.75, 0.9, vFlex) * 0.85);
+		} else if (uPattern == 16) {
+			// Clown loach: dorsal and anal fins black at the base, red beyond; the tail red with a black base.
+			if (median) color = mix(accent, color, smoothstep(0.3, 0.55, vFlex));
+			else if (caudal) color = mix(accent, color, smoothstep(0.04, 0.18, vFlex));
+			alpha = max(alpha, 0.6);
+		} else if (uPattern == 17) {
+			// Otocinclus: clear fins with dark spots on the rays.
+			float spots = smoothstep(0.72, 0.8, azfNoise(vec2(rayCoord * 1.3, vFlex * 8.0) + seed * 11.0));
+			color = mix(color, accent, spots * ray * 0.7);
+			alpha = max(alpha, spots * ray * 0.6);
 		} else if (uPattern == 1 && median) {
 			color = mix(color, accent2, (1.0 - vFlex) * 0.25);
 		}
@@ -427,6 +488,80 @@ const FISH_FRAGMENT_CODE = /* glsl */ `
 			color = mix(color, vec3(0.62, 0.56, 0.48), azBand(discR, 0.55, 0.18, 0.12) * underside);
 			color = mix(color, vec3(0.08, 0.06, 0.05), (1.0 - smoothstep(0.2, 0.35, discR)) * underside);
 			rough = 0.55;
+		} else if (uPattern == 12) {
+			// Rummy-nose tetra: a blood-red head on a silvery body.
+			float edge = (azfNoise(vec2(v * 3.0, seed * 11.0)) - 0.5) * 0.05;
+			float head = 1.0 - smoothstep(gillT - 0.03, gillT + 0.07, t + edge);
+			color = mix(color, accent * (0.8 + 0.35 * fresnel), head * 0.9);
+			glow += accent * head * fresnel * 0.08;
+			metal = mix(metal, 0.12, head);
+			// A dark spot at the tail base, where the tail stripes begin.
+			float base = azBand(t, 0.97, 0.03, 0.02) * azBand(v, 0.0, 0.22, 0.12);
+			color = mix(color, accent2, base * 0.7);
+		} else if (uPattern == 13) {
+			// Tiger barb: four black bands over gold, and a red snout.
+			float s = t + v * 0.025 + (azfNoise(vec2(v * 2.5, seed * 13.0)) - 0.5) * 0.025;
+			float bands = azBand(s, uEyeT, 0.028, 0.012);
+			bands = max(bands, azBand(s, 0.34, 0.045, 0.015));
+			bands = max(bands, azBand(s, 0.63, 0.045, 0.015) * smoothstep(-0.95, -0.7, v));
+			bands = max(bands, azBand(t, 0.95, 0.028, 0.015) * azBand(v, 0.0, 0.55, 0.2));
+			color = mix(color, accent, bands * 0.92);
+			float snout = (1.0 - smoothstep(0.015, 0.06, t)) * smoothstep(-0.7, 0.0, v);
+			color = mix(color, accent2, snout * 0.75);
+			// The bands carry a faint green sheen.
+			glow += vec3(0.05, 0.12, 0.08) * bands * fresnel * uIridescence;
+			metal = mix(metal, 0.05, bands);
+		} else if (uPattern == 14) {
+			// Swordtail: wild green with a red zigzag along the flank, or the red form.
+			float zig = (abs(fract(t * 6.0 + seed) - 0.5) - 0.25) * 0.1;
+			float stripeV = 0.06 - 0.06 * t + zig;
+			float stripe = azBand(v, stripeV, 0.05, 0.035) * smoothstep(0.02, 0.1, t) * (1.0 - smoothstep(0.92, 1.0, t));
+			if (variety > 0.5) {
+				color = mix(accent * 0.7, accent * 1.08, smoothstep(0.7, -0.3, v));
+				color = mix(color, mix(accent, uBelly, 0.5), belly * 0.6);
+				color = mix(color, accent * 0.55, stripe * 0.5);
+			} else {
+				color = mix(color, accent, stripe * 0.9);
+				glow += vec3(0.2, 0.5, 0.4) * flank * fresnel * uIridescence * 0.25;
+			}
+		} else if (uPattern == 15) {
+			// Discus: fine turquoise lines wandering across red-brown, level rather than
+			// following the round outline, and broken up towards the middle of the flank.
+			float warp = (azfFbm(vec2(t * 3.0, p.y * 9.0) + seed * 17.0) - 0.5) * 0.05;
+			float wave = (p.y + warp + 0.008 * sin(t * 15.0 + seed * 5.0)) * 110.0;
+			float lines = smoothstep(0.6, 0.9, 0.5 + 0.5 * sin(wave));
+			float coverage = mix(0.3, 1.0, smoothstep(0.2, 0.75, abs(v))) * smoothstep(0.03, 0.12, t);
+			coverage *= smoothstep(0.28, 0.55, azfFbm(vec2(t * 5.0, p.y * 16.0) + seed * 3.0));
+			vec3 turquoise = mix(accent, vec3(0.5, 0.72, 0.68), 0.3);
+			color = mix(color, turquoise * (0.7 + 0.4 * fresnel), lines * coverage * 0.8);
+			// Nine faint bars, which darken when the fish is uneasy.
+			float bars = smoothstep(0.82, 0.98, 0.5 + 0.5 * cos(t * 6.2831853 * 8.0 - 1.0));
+			color *= 1.0 - bars * 0.12;
+			float eyeBar = azBand(t, uEyeT, 0.028, 0.02);
+			color = mix(color, color * 0.3, eyeBar * 0.75);
+			glow += accent * lines * fresnel * uIridescence * 0.3;
+			metal = mix(metal, 0.2, lines);
+		} else if (uPattern == 16) {
+			// Clown loach: three broad black bands on orange, yellower towards the belly.
+			float curve = v * v * 0.03;
+			float bands = azBand(t - curve, uEyeT + 0.005, 0.04, 0.012);
+			bands = max(bands, azBand(t + curve, 0.37, 0.07, 0.015));
+			bands = max(bands, azBand(t + curve * 1.5, 0.78, 0.085, 0.015) * smoothstep(-1.0, -0.7, v));
+			color = mix(color, accent, bands * 0.95);
+			metal = mix(metal, 0.02, bands);
+			rough = mix(rough, 0.5, bands);
+		} else if (uPattern == 17) {
+			// Otocinclus: a dark stripe from snout to tail over sandy, mottled armour.
+			float mottle = azfFbm(vec2(t * 10.0, v * 4.0) + seed * 5.0);
+			color = mix(color, uAccent2, smoothstep(0.45, 0.7, mottle) * smoothstep(0.2, 0.6, v) * 0.6);
+			float stripeV = 0.1 - 0.08 * t;
+			float stripe = azBand(v, stripeV, 0.13, 0.06) * smoothstep(0.0, 0.05, t);
+			float spot = 1.0 - smoothstep(0.05, 0.08, length(vec2((t - 0.97) * 1.4, v - stripeV)));
+			color = mix(color, accent, max(stripe, spot) * 0.85);
+			color = mix(color, uBelly, belly * 0.6);
+			float plates = azBand(fract(t * 20.0), 0.0, 0.05, 0.05) + azBand(fract(t * 20.0), 1.0, 0.05, 0.05);
+			color *= 1.0 - plates * 0.1 * scaled;
+			rough = 0.5;
 		} else {
 			// Black molly: velvety black with a faint blue-green sheen.
 			glow += accent * fresnel * uIridescence * 0.15;
@@ -454,7 +589,7 @@ const FISH_FRAGMENT_CODE = /* glsl */ `
 	glow *= vLook.x * lightLevel;
 
 	diffuseColor.rgb = color;
-	diffuseColor.a = alpha;
+	diffuseColor.a = alpha * presence;
 	roughnessFactor = rough;
 	metalnessFactor = metal;
 	totalEmissiveRadiance += glow;

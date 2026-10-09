@@ -2,6 +2,7 @@ import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
 import type { CycleMinutes } from "@/config/dayNight"
 import type { QualitySetting } from "@/config/quality"
+import { SPECIES_BY_ID, STARTER_ROSTER } from "@/config/species"
 import {
 	DEFAULT_SETTINGS,
 	migrateSettings,
@@ -13,6 +14,7 @@ import {
 	type ReducedMotionPreference,
 } from "@/lib/persistence"
 import type { LightMode } from "@/simulation/core/events"
+import { clampGroupSize } from "@/simulation/fish/population"
 
 export interface SettingsActions {
 	setSound: (enabled: boolean) => void
@@ -20,6 +22,9 @@ export interface SettingsActions {
 	setVolume: (volume: number) => void
 	setLightMode: (mode: LightMode) => void
 	setTankLight: (on: boolean) => void
+	/** Sets how many of a species live in the tank; 0 takes the species out. */
+	setSpeciesCount: (speciesId: string, count: number) => void
+	restoreStarterTank: () => void
 	setCycleMinutes: (minutes: CycleMinutes) => void
 	setAquariumHour: (hour: number) => void
 	setQuality: (quality: QualitySetting) => void
@@ -46,6 +51,16 @@ export const useSettingsStore = create<SettingsState>()(
 				set((s) => ({ audio: { ...s.audio, volume: Math.min(1, Math.max(0, volume)) } })),
 			setLightMode: (lightMode) => set({ lightMode }),
 			setTankLight: (tankLight) => set({ tankLight }),
+			setSpeciesCount: (speciesId, count) =>
+				set((s) => {
+					const species = SPECIES_BY_ID.get(speciesId)
+					if (!species) return {}
+					const roster = { ...s.roster }
+					if (count > 0) roster[speciesId] = clampGroupSize(species, count)
+					else delete roster[speciesId]
+					return { roster }
+				}),
+			restoreStarterTank: () => set({ roster: STARTER_ROSTER }),
 			setCycleMinutes: (cycleMinutes) => set({ cycleMinutes }),
 			setAquariumHour: (aquariumHour) => set({ aquariumHour }),
 			setQuality: (quality) => set({ quality }),
@@ -66,6 +81,7 @@ export const useSettingsStore = create<SettingsState>()(
 				audio: state.audio,
 				lightMode: state.lightMode,
 				tankLight: state.tankLight,
+				roster: state.roster,
 				cycleMinutes: state.cycleMinutes,
 				aquariumHour: state.aquariumHour,
 				quality: state.quality,

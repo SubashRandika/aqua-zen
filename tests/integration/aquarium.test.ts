@@ -1,4 +1,5 @@
 import { Vector3 } from "three"
+import { STARTER_ROSTER } from "@/config/species"
 import { FRONT_GLASS_Z, TANK_INTERIOR } from "@/config/tank"
 import { AquariumWorld } from "@/simulation/core/World"
 import { substrateHeight } from "@/simulation/environment/substrate"
@@ -133,6 +134,126 @@ describe("natural movement", () => {
 		expect(attachedSeconds).toBeGreaterThan(60)
 		expect(attachments).toBeGreaterThan(1)
 		expect(backAgainstSurface).toBeGreaterThan(0.9)
+	})
+})
+
+describe("choosing the fish", () => {
+	const ofSpecies = (world: AquariumWorld, id: string) =>
+		world.fish.agents.filter((a) => a.species.id === id)
+
+	it("brings new fish out of cover, fading in", () => {
+		const world = createWorld()
+		simulate(world, 5)
+		let changes = 0
+		world.events.on("population:changed", () => changes++)
+		world.setRoster({ ...STARTER_ROSTER, discus: 3 })
+		const discus = ofSpecies(world, "discus")
+		expect(discus).toHaveLength(3)
+		expect(changes).toBe(1)
+		expect(world.fish.composition.split(",")).toContain("discus")
+		for (const fish of discus) {
+			expect(fish.presence).toBe(0)
+			const nearCover = world.scape.coverSpots.some(
+				(spot) => Math.hypot(spot.x - fish.position.x, spot.z - fish.position.z) < 0.15,
+			)
+			expect(nearCover).toBe(true)
+		}
+		simulate(world, 3)
+		for (const fish of discus) expect(fish.presence).toBe(1)
+	})
+
+	it("lets fish that are taken out swim into cover and fade away", () => {
+		const world = createWorld()
+		simulate(world, 5)
+		const neons = ofSpecies(world, "neon-tetra")
+		const withoutNeons = Object.fromEntries(
+			Object.entries(STARTER_ROSTER).filter(([id]) => id !== "neon-tetra"),
+		)
+		world.setRoster(withoutNeons)
+		// They don't vanish on the spot.
+		expect(ofSpecies(world, "neon-tetra")).toHaveLength(neons.length)
+		expect(neons.every((n) => n.leaving && n.presence === 1)).toBe(true)
+		simulate(world, 1)
+		expect(neons.every((n) => n.leaving && n.state === "hiding")).toBe(true)
+		simulate(world, 6)
+		expect(ofSpecies(world, "neon-tetra")).toHaveLength(0)
+		expect(world.fish.composition.split(",")).not.toContain("neon-tetra")
+		expect(world.fish.agents.length).toBe(world.fish.agents.filter((a) => !a.leaving).length)
+	})
+
+	it("turns departing fish back if the owner changes their mind", () => {
+		const world = createWorld()
+		simulate(world, 2)
+		const before = ofSpecies(world, "zebra-danio").map((a) => a.id)
+		world.setRoster({ ...STARTER_ROSTER, "zebra-danio": 5 })
+		expect(ofSpecies(world, "zebra-danio").filter((a) => a.leaving)).toHaveLength(2)
+		simulate(world, 1)
+		world.setRoster(STARTER_ROSTER)
+		const after = ofSpecies(world, "zebra-danio")
+		expect(after.map((a) => a.id).sort()).toEqual([...before].sort())
+		expect(after.every((a) => !a.leaving)).toBe(true)
+		simulate(world, 8)
+		expect(ofSpecies(world, "zebra-danio")).toHaveLength(before.length)
+	})
+
+	it("fits the tank to the quality level, keeping schools together", () => {
+		const world = createWorld()
+		world.setFishCapacity(36)
+		simulate(world, 8)
+		expect(world.fish.agents.length).toBeLessThanOrEqual(40)
+		for (const [id, count] of world.fish.countBySpecies())
+			expect(count).toBeGreaterThanOrEqual(
+				world.fish.agents.find((a) => a.species.id === id)!.species.population.minCount,
+			)
+	})
+
+	it("runs with an empty tank, and fills it again", () => {
+		const world = createWorld()
+		world.setRoster({})
+		simulate(world, 8)
+		expect(world.fish.agents).toHaveLength(0)
+		expect(world.fish.composition).toBe("")
+		world.setRoster({ guppy: 4 })
+		simulate(world, 5)
+		expect(world.fish.agents).toHaveLength(4)
+	})
+
+	it("lets the new species live by their nature", () => {
+		const world = createWorld({
+			roster: { "rummy-nose-tetra": 10, "clown-loach": 4, otocinclus: 4, discus: 3 },
+			hour: 22,
+		})
+		const b = world.bounds
+		let otoAttached = 0
+		let loachDepth = 0
+		let loachSamples = 0
+		simulate(world, 180, () => {
+			for (const agent of world.fish.agents) {
+				if (agent.species.id === "otocinclus" && agent.cling) otoAttached++
+				if (agent.species.id === "clown-loach") {
+					loachDepth += (agent.position.y - b.minY) / (b.maxY - b.minY)
+					loachSamples++
+				}
+			}
+		})
+		// The otocinclus graze while holding on to surfaces; the loaches keep to the lowest water.
+		expect(otoAttached).toBeGreaterThan(0)
+		expect(loachDepth / loachSamples).toBeLessThan(0.3)
+	})
+
+	it("keeps rummy-nose tetras in a tight school by day", () => {
+		const world = createWorld({ roster: { "rummy-nose-tetra": 10, discus: 3 } })
+		const rummies = ofSpecies(world, "rummy-nose-tetra")
+		let schooled = 0
+		let samples = 0
+		simulate(world, 120, (time) => {
+			if (time < 60 || Math.round(time * 30) % 15 !== 0) return
+			for (const n of rummies) {
+				if (rummies.some((m) => m !== n && m.position.distanceTo(n.position) < 0.12)) schooled++
+				samples++
+			}
+		})
+		expect(schooled / samples).toBeGreaterThan(0.75)
 	})
 })
 

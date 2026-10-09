@@ -13,7 +13,7 @@ import type { Bounds } from "../steering/steering"
 import { GLASS_INTERACTION } from "../interaction/GlassStimuli"
 import { FishAgent, type PendingReaction } from "./FishAgent"
 import { generatePersonality } from "./personality"
-import { populationPlan } from "./population"
+import type { PopulationEntry } from "./population"
 import type { FishSpeciesDefinition } from "./types"
 
 const PERCEPTION_RADIUS = 0.25
@@ -21,6 +21,11 @@ const PERCEPTION_RADIUS = 0.25
 const BOTTOM_DWELLER_SINK_RATE = 0.012
 /** Near fish refresh neighbours every frame-ish; distant ones less often. */
 const PERCEPTION_INTERVAL = { near: 1 / 30, far: 1 / 10 }
+/** Seconds for a newcomer to fade in as it leaves cover. */
+const ARRIVAL_FADE_SECONDS = 2.2
+/** A fish taken out swims for cover at most this long before it fades away. */
+const DEPARTURE_SWIM_SECONDS = 3
+const DEPARTURE_FADE_SECONDS = 1.6
 
 const desire = new Vector3()
 const flow = new Vector3()
@@ -54,22 +59,61 @@ export class FishManager {
 	private readonly speciesStats = new Map<string, SpeciesStats>()
 	private readonly queryBuffer: FishAgent[] = []
 	private nextId = 1
+	private compositionKey = ""
 
 	constructor(
 		private readonly random: RandomSource,
-		private readonly species: readonly FishSpeciesDefinition[],
+		/** Every species the tank can hold. */
+		readonly species: readonly FishSpeciesDefinition[],
 	) {}
 
-	/** Adds or removes fish so each species matches the population density. */
-	setPopulation(density: number, options: SpawnOptions): void {
-		for (const { species, count } of populationPlan(this.species, density)) {
-			const current = this.agents.filter((a) => a.species.id === species.id)
-			if (current.length > count) {
-				for (const agent of current.slice(count)) this.remove(agent.id)
-			} else if (current.length < count) {
-				this.spawnGroup(species, count - current.length, options, current.length > 0)
+	/**
+	 * The species currently in the tank (including fish on their way out),
+	 * as a comma-separated list of ids in catalogue order. Changes only when
+	 * a species arrives or is gone.
+	 */
+	get composition(): string {
+		return this.compositionKey
+	}
+
+	/**
+	 * Adds and takes out fish so the tank matches the plan. With `gradual`,
+	 * newcomers emerge from cover and fade in, and fish taken out swim into
+	 * cover and fade away; otherwise changes are immediate.
+	 */
+	setPopulation(plan: readonly PopulationEntry[], options: SpawnOptions, gradual: boolean): void {
+		const planned = new Set(plan.map((entry) => entry.species.id))
+		const departing = this.agents.filter((a) => !a.leaving && !planned.has(a.species.id))
+		for (const { species, count } of plan) {
+			const staying = this.agents.filter((a) => a.species.id === species.id && !a.leaving)
+			if (staying.length > count) {
+				departing.push(...staying.slice(count))
+				continue
 			}
+			let missing = count - staying.length
+			// Fish already on their way out turn back before new ones are added.
+			for (const agent of this.agents) {
+				if (missing === 0) break
+				if (agent.species.id !== species.id || !agent.leaving) continue
+				agent.leaving = false
+				agent.stateDuration = 0
+				missing--
+			}
+			if (missing > 0) this.spawnGroup(species, missing, options, gradual)
 		}
+		for (const agent of departing) {
+			if (gradual) agent.leaving = true
+			else this.remove(agent.id)
+		}
+		this.refreshComposition()
+	}
+
+	private refreshComposition(): void {
+		const present = new Set(this.agents.map((a) => a.species.id))
+		this.compositionKey = this.species
+			.filter((s) => present.has(s.id))
+			.map((s) => s.id)
+			.join(",")
 	}
 
 	private remove(id: number): void {
@@ -95,15 +139,20 @@ export class FishManager {
 			randomRange(r, b.minZ + 0.08, b.maxZ - 0.08),
 		)
 		const groupYaw = r() * Math.PI * 2
+		const cover = options.scape.coverSpots
+		const pickCover = () => cover[Math.floor(r() * cover.length)]!
+		// A school arrives together, from one patch of cover.
+		const sharedCover = joining && schooling && cover.length > 0 ? pickCover() : null
 		for (let i = 0; i < count; i++) {
 			const agent = new FishAgent(this.nextId++, species, generatePersonality(species, r), r)
 			let x: number
 			let z: number
-			if (joining && options.scape.coverSpots.length > 0) {
+			if (joining && cover.length > 0) {
 				// Newcomers emerge from cover rather than appearing in open water.
-				const spot = options.scape.coverSpots[Math.floor(r() * options.scape.coverSpots.length)]!
-				x = spot.x
-				z = spot.z
+				const spot = sharedCover ?? pickCover()
+				x = spot.x + (sharedCover ? randomRange(r, -0.05, 0.05) : 0)
+				z = spot.z + (sharedCover ? randomRange(r, -0.03, 0.03) : 0)
+				agent.presence = 0
 			} else if (schooling) {
 				x = groupCenter.x + randomRange(r, -0.12, 0.12)
 				z = groupCenter.z + randomRange(r, -0.06, 0.06)
@@ -141,7 +190,11 @@ export class FishManager {
 		agent.territoryRadius = 0.1 + 0.12 * agent.personality.territoriality
 	}
 
-	update(ctx: BehaviorContext, cameraPosition: Vector3Like | null): void {
+	/**
+	 * Advances every fish by one step. Returns true when fish have left the
+	 * tank during the step.
+	 */
+	update(ctx: BehaviorContext, cameraPosition: Vector3Like | null): boolean {
 		this.spatial.rebuild(this.agents)
 		this.computeSpeciesStats()
 
@@ -153,6 +206,9 @@ export class FishManager {
 				agent.cameraDistance = Math.sqrt(dx * dx + dy * dy + dz * dz)
 			}
 			agent.stateTime += ctx.dt
+			if (agent.leaving) this.depart(agent, ctx)
+			else if (agent.presence < 1)
+				agent.presence = Math.min(1, agent.presence + ctx.dt / ARRIVAL_FADE_SECONDS)
 
 			const perception = this.perceive(agent, ctx.dt)
 			this.updateDrives(agent, ctx, perception)
@@ -183,6 +239,36 @@ export class FishManager {
 			agent.up.lerp(agent.cling ? agent.cling.normal : WORLD_UP, 1 - Math.exp(-5 * ctx.dt))
 			agent.up.normalize()
 		}
+		return this.removeDeparted()
+	}
+
+	/** A fish taken out of the tank swims into the nearest cover and fades away there. */
+	private depart(agent: FishAgent, ctx: BehaviorContext): void {
+		if (agent.state !== "hiding") {
+			let nearest: Vector3 | null = null
+			for (const spot of ctx.scape.coverSpots) {
+				const closer =
+					!nearest ||
+					spot.distanceToSquared(agent.position) < nearest.distanceToSquared(agent.position)
+				if (closer) nearest = spot
+			}
+			agent.target.copy(nearest ?? agent.position)
+			agent.setState("hiding", ctx.time, Number.POSITIVE_INFINITY)
+		}
+		if (agent.arrived || agent.stateTime > DEPARTURE_SWIM_SECONDS)
+			agent.presence = Math.max(0, agent.presence - ctx.dt / DEPARTURE_FADE_SECONDS)
+	}
+
+	private removeDeparted(): boolean {
+		let removed = false
+		for (let i = this.agents.length - 1; i >= 0; i--) {
+			const agent = this.agents[i]!
+			if (!agent.leaving || agent.presence > 0) continue
+			this.remove(agent.id)
+			removed = true
+		}
+		if (removed) this.refreshComposition()
+		return removed
 	}
 
 	/** Gently resolves bodies that still overlap after steering (e.g. in a tight school). */
@@ -323,6 +409,11 @@ export class FishManager {
 
 	private processReactions(agent: FishAgent, ctx: BehaviorContext): void {
 		if (agent.pendingReactions.length === 0) return
+		// A fish on its way out keeps going.
+		if (agent.leaving) {
+			agent.pendingReactions.length = 0
+			return
+		}
 		const due: PendingReaction[] = []
 		for (let i = agent.pendingReactions.length - 1; i >= 0; i--) {
 			const reaction = agent.pendingReactions[i]!

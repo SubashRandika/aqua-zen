@@ -2,6 +2,7 @@
 
 import { useEffect } from "react"
 import { QUALITY_PRESETS } from "@/config/quality"
+import { stopWatching } from "@/lib/aquariumActions"
 import type { AquariumWorld } from "@/simulation/core/World"
 import { useSessionStore } from "@/store/sessionStore"
 import { useSettingsStore } from "@/store/settingsStore"
@@ -28,11 +29,19 @@ export function useWorldSync(world: AquariumWorld | null): void {
 			// Read the latest value: changing the light mode may have just switched the light.
 			if (state.tankLight !== previous.tankLight) world.setTankLight(settings.getState().tankLight)
 			if (state.cycleMinutes !== previous.cycleMinutes) world.setCycleMinutes(state.cycleMinutes)
+			if (state.roster !== previous.roster) world.setRoster(state.roster)
 		})
 		const unsubscribeSession = session.subscribe((state, previous) => {
 			if (state.activeQuality !== previous.activeQuality) {
-				world.setPopulationDensity(QUALITY_PRESETS[state.activeQuality].fishDensity)
+				world.setFishCapacity(QUALITY_PRESETS[state.activeQuality].fishCapacity)
 			}
+		})
+		// Stop following a fish once it has been taken out of the tank.
+		const unsubscribePopulation = world.events.on("population:changed", () => {
+			const follow = session.getState().follow
+			if (!follow) return
+			const fish = world.fish.byId.get(follow.fishId)
+			if (!fish || fish.leaving) stopWatching()
 		})
 		const unsubscribePhase = world.events.on("time:phase", (event) =>
 			session.getState().setPhase(event.phase),
@@ -50,6 +59,7 @@ export function useWorldSync(world: AquariumWorld | null): void {
 		return () => {
 			unsubscribeSettings()
 			unsubscribeSession()
+			unsubscribePopulation()
 			unsubscribePhase()
 			unsubscribeTankLight()
 			window.clearInterval(interval)

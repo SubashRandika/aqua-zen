@@ -65,6 +65,11 @@ export interface FishStartledEvent {
 	position: Vector3Like
 }
 
+/** Fish were added to the tank, set off to leave it, or have left. */
+export interface PopulationChangedEvent {
+	type: "population:changed"
+}
+
 export type AquariumEvent =
 	| GlassTapEvent
 	| GlassHoldEvent
@@ -76,6 +81,7 @@ export type AquariumEvent =
 	| TimeChangedEvent
 	| CameraInteractionEvent
 	| FishStartledEvent
+	| PopulationChangedEvent
 
 export type AquariumEventType = AquariumEvent["type"]
 

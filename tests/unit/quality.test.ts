@@ -17,7 +17,7 @@ describe("quality levels", () => {
 	it("are ordered from cheapest to richest", () => {
 		const presets = QUALITY_LEVELS.map((level) => QUALITY_PRESETS[level])
 		for (let i = 1; i < presets.length; i++) {
-			expect(presets[i]!.fishDensity).toBeGreaterThanOrEqual(presets[i - 1]!.fishDensity)
+			expect(presets[i]!.fishCapacity).toBeGreaterThan(presets[i - 1]!.fishCapacity)
 			expect(presets[i]!.suspendedParticles).toBeGreaterThan(presets[i - 1]!.suspendedParticles)
 			expect(presets[i]!.plantDensity).toBeGreaterThanOrEqual(presets[i - 1]!.plantDensity)
 			expect(presets[i]!.dpr[1]).toBeGreaterThanOrEqual(presets[i - 1]!.dpr[1])
@@ -38,7 +38,7 @@ describe("quality levels", () => {
 		expect(reduced.lightShafts).toBe(false)
 		expect(reduced.postProcessing.bloom).toBe(false)
 		expect(reduced.suspendedParticles).toBeLessThan(QUALITY_PRESETS.ultra.suspendedParticles)
-		expect(reduced.fishDensity).toBe(QUALITY_PRESETS.ultra.fishDensity)
+		expect(reduced.fishCapacity).toBe(QUALITY_PRESETS.ultra.fishCapacity)
 	})
 })
 

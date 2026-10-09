@@ -53,13 +53,14 @@ export function AquariumApp() {
 			? applyReducedEffects(basePreset)
 			: basePreset
 		const created = new AquariumWorld({
-			populationDensity: preset.fishDensity,
+			roster: settings.roster,
+			fishCapacity: preset.fishCapacity,
 			hour: settings.aquariumHour,
 			cycleMinutes: settings.cycleMinutes,
 			lightMode: settings.lightMode,
 			tankLight: settings.tankLight,
 		})
-		prepareAssets(preset, (step) => {
+		prepareAssets(preset, Object.keys(settings.roster), (step) => {
 			if (!cancelled) useSessionStore.getState().setLoadingStage(step)
 		})
 			.then(() => {

@@ -1,9 +1,10 @@
+import type { Roster } from "@/simulation/fish/population"
 import type { FishSpeciesDefinition } from "@/simulation/fish/types"
 
 /**
  * Species catalogue. Adding a species is a matter of adding an entry here —
- * the simulation, renderer and population systems read everything from this
- * configuration. Sizes and speeds are real-world values in metres.
+ * the simulation, renderer, population and fish list read everything from
+ * this configuration. Sizes and speeds are real-world values in metres.
  */
 
 const neonTetra: FishSpeciesDefinition = {
@@ -50,7 +51,13 @@ const neonTetra: FishSpeciesDefinition = {
 		zones: { surface: 0.35, midwater: 1, bottom: 0.3 },
 		appetite: 0.12,
 	},
-	population: { count: 16, minCount: 8 },
+	population: { count: 16, minCount: 6, maxCount: 24 },
+	catalog: {
+		group: "shoaling",
+		plural: "neon tetras",
+		note: "Schools in the middle water",
+		swatch: { colors: ["#56604f", "#2ad4ff", "#d6203a"] },
+	},
 	visual: {
 		lodDistances: [0.75, 1.7],
 		shape: {
@@ -134,7 +141,13 @@ const harlequinRasbora: FishSpeciesDefinition = {
 		zones: { surface: 0.7, midwater: 1, bottom: 0.15 },
 		appetite: 0.12,
 	},
-	population: { count: 10, minCount: 6 },
+	population: { count: 10, minCount: 6, maxCount: 16 },
+	catalog: {
+		group: "shoaling",
+		plural: "harlequin rasboras",
+		note: "Shoals in the upper water",
+		swatch: { colors: ["#a87361", "#e8a06e", "#ead0c2"], bars: [0.62] },
+	},
 	visual: {
 		lodDistances: [0.85, 1.8],
 		shape: {
@@ -217,7 +230,13 @@ const zebraDanio: FishSpeciesDefinition = {
 		zones: { surface: 1, midwater: 0.6, bottom: 0.05 },
 		appetite: 0.16,
 	},
-	population: { count: 7, minCount: 5 },
+	population: { count: 7, minCount: 5, maxCount: 12 },
+	catalog: {
+		group: "shoaling",
+		plural: "zebra danios",
+		note: "Quick and restless near the top",
+		swatch: { colors: ["#b7a46e", "#24346e", "#e9d9a2", "#24346e", "#e7e2d2"] },
+	},
 	visual: {
 		lodDistances: [0.85, 1.8],
 		shape: {
@@ -252,6 +271,187 @@ const zebraDanio: FishSpeciesDefinition = {
 			nightFade: 0.2,
 			iris: "#c8b98a",
 			scales: { size: 0.026, contrast: 0.2 },
+		},
+	},
+}
+
+const rummyNoseTetra: FishSpeciesDefinition = {
+	id: "rummy-nose-tetra",
+	name: "Rummy-nose tetra",
+	scientificName: "Hemigrammus bleheri",
+	model: "procedural:slender",
+	scale: 0.045,
+	sizeVariation: 0.08,
+	preferredDepth: { min: 0.25, max: 0.6 },
+	movement: {
+		minSpeed: 0.01,
+		cruiseSpeed: 0.055,
+		maxSpeed: 0.14,
+		burstSpeed: 0.32,
+		acceleration: 0.95,
+		turnRate: 4.4,
+		swimStyle: "burstGlide",
+		maxPitch: 0.45,
+		tailBeat: { baseFrequency: 2.3, frequencyPerBodyLength: 1.5, amplitude: 0.075 },
+		kickInterval: { min: 0.25, max: 0.8 },
+	},
+	behavior: {
+		schooling: 0.95,
+		curiosity: 0.3,
+		shyness: 0.55,
+		territoriality: 0,
+		aggressiveness: 0.02,
+		sociability: 0.9,
+		energy: 0.65,
+		nocturnal: 0.05,
+		personalityVariance: 0.1,
+	},
+	schooling: {
+		neighborRadius: 0.16,
+		separationDistance: 0.03,
+		alignment: 0.95,
+		cohesion: 0.75,
+		maxNeighbors: 7,
+	},
+	feeding: {
+		attractionRadius: 0.4,
+		feedingSpeed: 2.4,
+		zones: { surface: 0.4, midwater: 1, bottom: 0.25 },
+		appetite: 0.12,
+	},
+	population: { count: 10, minCount: 6, maxCount: 16 },
+	catalog: {
+		group: "shoaling",
+		plural: "rummy-nose tetras",
+		note: "The tightest school of all",
+		swatch: { colors: ["#8f9a92", "#dfe5e2"], bars: [0.07], barColor: "#d0242e" },
+	},
+	visual: {
+		lodDistances: [0.8, 1.75],
+		shape: {
+			bodyLength: 0.78,
+			crossSection: 2,
+			profile: [
+				{ t: 0, top: 0.013, bottom: 0.011, width: 0.009 },
+				{ t: 0.13, top: 0.068, bottom: 0.058, width: 0.042 },
+				{ t: 0.36, top: 0.098, bottom: 0.088, width: 0.055 },
+				{ t: 0.62, top: 0.078, bottom: 0.068, width: 0.042 },
+				{ t: 0.86, top: 0.04, bottom: 0.038, width: 0.02 },
+				{ t: 1, top: 0.032, bottom: 0.032, width: 0.012 },
+			],
+			eye: { t: 0.11, y: 0.022, radius: 0.036 },
+			caudal: { kind: "forked", spread: 0.22, fork: 0.55 },
+			dorsal: { start: 0.42, end: 0.54, height: 0.08, sweep: 0.05 },
+			anal: { start: 0.58, end: 0.84, height: 0.05, sweep: 0.03 },
+			pectoral: { t: 0.2, length: 0.085, width: 0.038 },
+			pelvic: { t: 0.45, length: 0.055, width: 0.024 },
+			adipose: { t: 0.84, height: 0.028 },
+		},
+		pattern: {
+			kind: "rummyNose",
+			back: "#8f9a92",
+			belly: "#dfe5e2",
+			fin: "#e4eae8",
+			accent: "#d0242e",
+			accent2: "#141616",
+			finOpacity: 0.3,
+			iridescence: 0.45,
+			silver: 0.6,
+			hueVariation: 0.01,
+			// The red head pales at night and whenever the fish is uneasy.
+			nightFade: 0.55,
+			iris: "#b8453a",
+			scales: { size: 0.03, contrast: 0.2 },
+		},
+	},
+}
+
+const tigerBarb: FishSpeciesDefinition = {
+	id: "tiger-barb",
+	name: "Tiger barb",
+	scientificName: "Puntigrus tetrazona",
+	model: "procedural:deep",
+	scale: 0.06,
+	sizeVariation: 0.1,
+	preferredDepth: { min: 0.3, max: 0.7 },
+	movement: {
+		minSpeed: 0.01,
+		cruiseSpeed: 0.06,
+		maxSpeed: 0.15,
+		burstSpeed: 0.36,
+		acceleration: 1.0,
+		turnRate: 3.8,
+		swimStyle: "burstGlide",
+		maxPitch: 0.5,
+		tailBeat: { baseFrequency: 2.2, frequencyPerBodyLength: 1.4, amplitude: 0.075 },
+		kickInterval: { min: 0.3, max: 1.0 },
+	},
+	behavior: {
+		schooling: 0.65,
+		curiosity: 0.6,
+		shyness: 0.2,
+		territoriality: 0.15,
+		aggressiveness: 0.4,
+		sociability: 0.75,
+		energy: 0.85,
+		nocturnal: 0,
+		personalityVariance: 0.16,
+	},
+	schooling: {
+		neighborRadius: 0.2,
+		separationDistance: 0.045,
+		alignment: 0.6,
+		cohesion: 0.5,
+		maxNeighbors: 5,
+	},
+	feeding: {
+		attractionRadius: 0.5,
+		feedingSpeed: 2.6,
+		zones: { surface: 0.7, midwater: 1, bottom: 0.45 },
+		appetite: 0.16,
+	},
+	population: { count: 7, minCount: 6, maxCount: 12 },
+	catalog: {
+		group: "shoaling",
+		plural: "tiger barbs",
+		note: "Lively, and nips at long fins",
+		swatch: { colors: ["#b8923e", "#efe0b4"], bars: [0.13, 0.35, 0.64, 0.93] },
+	},
+	visual: {
+		lodDistances: [0.95, 1.9],
+		shape: {
+			bodyLength: 0.76,
+			crossSection: 2,
+			keel: 0.4,
+			profile: [
+				{ t: 0, top: 0.018, bottom: 0.014, width: 0.01 },
+				{ t: 0.14, top: 0.1, bottom: 0.075, width: 0.045 },
+				{ t: 0.36, top: 0.165, bottom: 0.13, width: 0.06 },
+				{ t: 0.62, top: 0.115, bottom: 0.1, width: 0.045 },
+				{ t: 0.88, top: 0.05, bottom: 0.046, width: 0.022 },
+				{ t: 1, top: 0.04, bottom: 0.038, width: 0.015 },
+			],
+			eye: { t: 0.12, y: 0.03, radius: 0.04 },
+			caudal: { kind: "forked", spread: 0.28, fork: 0.5 },
+			dorsal: { start: 0.38, end: 0.56, height: 0.12, sweep: 0.06, peak: 0.25 },
+			anal: { start: 0.62, end: 0.78, height: 0.07, sweep: 0.04 },
+			pectoral: { t: 0.22, length: 0.08, width: 0.04 },
+			pelvic: { t: 0.46, length: 0.07, width: 0.03 },
+		},
+		pattern: {
+			kind: "tigerBarb",
+			back: "#a8843a",
+			belly: "#efe0b4",
+			fin: "#e9d8b0",
+			accent: "#141414",
+			accent2: "#d8381e",
+			finOpacity: 0.55,
+			iridescence: 0.25,
+			silver: 0.55,
+			hueVariation: 0.015,
+			nightFade: 0.3,
+			iris: "#c9472f",
+			scales: { size: 0.038, contrast: 0.4 },
 		},
 	},
 }
@@ -299,7 +499,13 @@ const guppy: FishSpeciesDefinition = {
 		zones: { surface: 1, midwater: 0.75, bottom: 0.2 },
 		appetite: 0.15,
 	},
-	population: { count: 6, minCount: 3 },
+	population: { count: 6, minCount: 1, maxCount: 10 },
+	catalog: {
+		group: "openWater",
+		plural: "guppies",
+		note: "Every tail is its own",
+		swatch: { colors: ["#8f998f", "#dad8cc"] },
+	},
 	visual: {
 		lodDistances: [0.85, 1.8],
 		shape: {
@@ -382,7 +588,13 @@ const angelfish: FishSpeciesDefinition = {
 		zones: { surface: 0.55, midwater: 1, bottom: 0.25 },
 		appetite: 0.1,
 	},
-	population: { count: 2, minCount: 1 },
+	population: { count: 2, minCount: 1, maxCount: 4 },
+	catalog: {
+		group: "openWater",
+		plural: "angelfish",
+		note: "Tall, slow and stately",
+		swatch: { colors: ["#b9bdb6", "#dfe1db"], bars: [0.14, 0.42, 0.74] },
+	},
 	visual: {
 		lodDistances: [1.3, 2.4],
 		shape: {
@@ -465,7 +677,13 @@ const betta: FishSpeciesDefinition = {
 		zones: { surface: 1, midwater: 0.6, bottom: 0.1 },
 		appetite: 0.12,
 	},
-	population: { count: 1, minCount: 1 },
+	population: { count: 1, minCount: 1, maxCount: 1 },
+	catalog: {
+		group: "openWater",
+		plural: "bettas",
+		note: "Kept alone, as males fight",
+		swatch: { colors: ["#2a4fb8", "#24398c"] },
+	},
 	visual: {
 		lodDistances: [1.2, 2.2],
 		shape: {
@@ -547,7 +765,13 @@ const dwarfGourami: FishSpeciesDefinition = {
 		zones: { surface: 0.9, midwater: 0.9, bottom: 0.2 },
 		appetite: 0.1,
 	},
-	population: { count: 2, minCount: 1 },
+	population: { count: 2, minCount: 1, maxCount: 3 },
+	catalog: {
+		group: "openWater",
+		plural: "dwarf gouramis",
+		note: "Explores with long feelers",
+		swatch: { colors: ["#bf4a2e", "#d26f45"], bars: [0.3, 0.44, 0.58, 0.72], barColor: "#3aa9cf" },
+	},
 	visual: {
 		lodDistances: [1.2, 2.2],
 		shape: {
@@ -632,7 +856,13 @@ const pandaCorydoras: FishSpeciesDefinition = {
 		appetite: 0.12,
 		forage: { style: "peck", tendency: 0.5 },
 	},
-	population: { count: 6, minCount: 4 },
+	population: { count: 6, minCount: 4, maxCount: 10 },
+	catalog: {
+		group: "bottom",
+		plural: "panda corydoras",
+		note: "Snuffles through the sand",
+		swatch: { colors: ["#b8a796", "#d9cbbb"], bars: [0.13, 0.9] },
+	},
 	visual: {
 		lodDistances: [0.85, 1.8],
 		shape: {
@@ -672,6 +902,100 @@ const pandaCorydoras: FishSpeciesDefinition = {
 			nightFade: 0.05,
 			iris: "#3a3e44",
 			scales: { size: 0.05, contrast: 0.05 },
+		},
+	},
+}
+
+const clownLoach: FishSpeciesDefinition = {
+	id: "clown-loach",
+	name: "Clown loach",
+	scientificName: "Chromobotia macracanthus",
+	model: "procedural:loach",
+	// Young loaches; adults grow far too large for this tank.
+	scale: 0.1,
+	sizeVariation: 0.1,
+	preferredDepth: { min: 0, max: 0.22 },
+	movement: {
+		minSpeed: 0.004,
+		cruiseSpeed: 0.04,
+		maxSpeed: 0.11,
+		burstSpeed: 0.3,
+		acceleration: 0.6,
+		turnRate: 2.8,
+		swimStyle: "continuous",
+		maxPitch: 0.55,
+		tailBeat: { baseFrequency: 1.8, frequencyPerBodyLength: 1.4, amplitude: 0.065 },
+	},
+	behavior: {
+		schooling: 0.55,
+		curiosity: 0.6,
+		shyness: 0.4,
+		territoriality: 0.05,
+		aggressiveness: 0.05,
+		sociability: 0.85,
+		energy: 0.6,
+		nocturnal: 0.45,
+		personalityVariance: 0.14,
+	},
+	schooling: {
+		neighborRadius: 0.3,
+		separationDistance: 0.08,
+		alignment: 0.4,
+		cohesion: 0.55,
+		maxNeighbors: 3,
+	},
+	feeding: {
+		attractionRadius: 0.45,
+		feedingSpeed: 1.8,
+		zones: { surface: 0.05, midwater: 0.4, bottom: 1 },
+		appetite: 0.15,
+		forage: { style: "peck", tendency: 0.55 },
+	},
+	population: { count: 4, minCount: 3, maxCount: 6 },
+	catalog: {
+		group: "bottom",
+		plural: "clown loaches",
+		note: "A busy gang, banded in black",
+		swatch: { colors: ["#e07a1c", "#f3c25a"], bars: [0.16, 0.37, 0.78] },
+	},
+	visual: {
+		lodDistances: [1.2, 2.2],
+		shape: {
+			bodyLength: 0.8,
+			crossSection: 2.2,
+			bellyCrossSection: 3,
+			keel: 0.35,
+			mouth: "inferior",
+			barbels: { pairs: 4, length: 0.035, y: -0.03, spacing: 0.012 },
+			profile: [
+				{ t: 0, top: 0.022, bottom: 0.016, width: 0.016 },
+				{ t: 0.14, top: 0.085, bottom: 0.05, width: 0.05 },
+				{ t: 0.38, top: 0.125, bottom: 0.075, width: 0.065 },
+				{ t: 0.66, top: 0.1, bottom: 0.07, width: 0.05 },
+				{ t: 0.9, top: 0.05, bottom: 0.045, width: 0.026 },
+				{ t: 1, top: 0.042, bottom: 0.04, width: 0.02 },
+			],
+			eye: { t: 0.16, y: 0.035, radius: 0.026 },
+			caudal: { kind: "forked", spread: 0.26, fork: 0.55 },
+			dorsal: { start: 0.42, end: 0.56, height: 0.1, sweep: 0.06 },
+			anal: { start: 0.7, end: 0.8, height: 0.06, sweep: 0.04 },
+			pectoral: { t: 0.2, length: 0.09, width: 0.04, splay: 0.3 },
+			pelvic: { t: 0.48, length: 0.07, width: 0.03, splay: 0.25 },
+		},
+		pattern: {
+			kind: "clownLoach",
+			back: "#e07a1c",
+			belly: "#f3c25a",
+			fin: "#d8361c",
+			accent: "#121110",
+			accent2: "#f0a030",
+			finOpacity: 0.75,
+			iridescence: 0.1,
+			silver: 0.15,
+			hueVariation: 0.015,
+			nightFade: 0.1,
+			iris: "#3a2e22",
+			scales: { size: 0.02, contrast: 0.1 },
 		},
 	},
 }
@@ -719,7 +1043,13 @@ const blackMolly: FishSpeciesDefinition = {
 		zones: { surface: 1, midwater: 0.85, bottom: 0.35 },
 		appetite: 0.14,
 	},
-	population: { count: 3, minCount: 2 },
+	population: { count: 3, minCount: 1, maxCount: 6 },
+	catalog: {
+		group: "openWater",
+		plural: "black mollies",
+		note: "Calm and velvety black",
+		swatch: { colors: ["#1e2124", "#2c2f32"] },
+	},
 	visual: {
 		lodDistances: [1.2, 2.2],
 		shape: {
@@ -754,6 +1084,187 @@ const blackMolly: FishSpeciesDefinition = {
 			nightFade: 0,
 			iris: "#3d3a33",
 			scales: { size: 0.034, contrast: 0.2 },
+		},
+	},
+}
+
+const swordtail: FishSpeciesDefinition = {
+	id: "swordtail",
+	name: "Swordtail",
+	scientificName: "Xiphophorus hellerii",
+	model: "procedural:sword",
+	scale: 0.085,
+	sizeVariation: 0.1,
+	preferredDepth: { min: 0.45, max: 0.9 },
+	movement: {
+		minSpeed: 0.006,
+		cruiseSpeed: 0.045,
+		maxSpeed: 0.12,
+		burstSpeed: 0.3,
+		acceleration: 0.6,
+		turnRate: 3.0,
+		swimStyle: "continuous",
+		maxPitch: 0.45,
+		tailBeat: { baseFrequency: 1.7, frequencyPerBodyLength: 1.4, amplitude: 0.06 },
+	},
+	behavior: {
+		schooling: 0.25,
+		curiosity: 0.6,
+		shyness: 0.25,
+		territoriality: 0.2,
+		aggressiveness: 0.15,
+		sociability: 0.55,
+		energy: 0.65,
+		nocturnal: 0,
+		personalityVariance: 0.14,
+	},
+	schooling: {
+		neighborRadius: 0.28,
+		separationDistance: 0.09,
+		alignment: 0.3,
+		cohesion: 0.25,
+		maxNeighbors: 2,
+	},
+	feeding: {
+		attractionRadius: 0.5,
+		feedingSpeed: 2,
+		zones: { surface: 1, midwater: 0.85, bottom: 0.3 },
+		appetite: 0.14,
+	},
+	population: { count: 3, minCount: 1, maxCount: 6 },
+	catalog: {
+		group: "openWater",
+		plural: "swordtails",
+		note: "A long sword on the tail",
+		swatch: { colors: ["#6f7a3c", "#c7432a", "#e3dcb8"] },
+	},
+	visual: {
+		lodDistances: [1.2, 2.2],
+		shape: {
+			bodyLength: 0.76,
+			crossSection: 2,
+			mouth: "superior",
+			profile: [
+				{ t: 0, top: 0.016, bottom: 0.014, width: 0.011 },
+				{ t: 0.15, top: 0.075, bottom: 0.07, width: 0.045 },
+				{ t: 0.4, top: 0.1, bottom: 0.1, width: 0.052 },
+				{ t: 0.7, top: 0.08, bottom: 0.07, width: 0.038 },
+				{ t: 0.92, top: 0.055, bottom: 0.05, width: 0.022 },
+				{ t: 1, top: 0.05, bottom: 0.046, width: 0.018 },
+			],
+			eye: { t: 0.12, y: 0.024, radius: 0.034 },
+			// The sword runs on for about one and a half tail lengths.
+			caudal: { kind: "sword", spread: 0.32, fork: 1.5 },
+			dorsal: { start: 0.38, end: 0.62, height: 0.1, sweep: 0.08 },
+			anal: { start: 0.6, end: 0.7, height: 0.06, sweep: 0.05 },
+			pectoral: { t: 0.22, length: 0.075, width: 0.036 },
+			pelvic: { t: 0.45, length: 0.05, width: 0.022 },
+		},
+		pattern: {
+			kind: "swordtail",
+			back: "#6f7a3c",
+			belly: "#e3dcb8",
+			fin: "#c9b56a",
+			accent: "#c7432a",
+			accent2: "#111111",
+			finOpacity: 0.55,
+			iridescence: 0.35,
+			silver: 0.45,
+			hueVariation: 0.02,
+			nightFade: 0.15,
+			iris: "#b89a4a",
+			scales: { size: 0.034, contrast: 0.3 },
+			varieties: 2,
+		},
+	},
+}
+
+const discus: FishSpeciesDefinition = {
+	id: "discus",
+	name: "Discus",
+	scientificName: "Symphysodon aequifasciatus",
+	model: "procedural:disc",
+	scale: 0.12,
+	sizeVariation: 0.08,
+	preferredDepth: { min: 0.3, max: 0.7 },
+	movement: {
+		minSpeed: 0.003,
+		cruiseSpeed: 0.026,
+		maxSpeed: 0.07,
+		burstSpeed: 0.22,
+		acceleration: 0.3,
+		turnRate: 1.7,
+		swimStyle: "continuous",
+		maxPitch: 0.3,
+		tailBeat: { baseFrequency: 1.0, frequencyPerBodyLength: 1.5, amplitude: 0.045 },
+	},
+	behavior: {
+		schooling: 0.35,
+		curiosity: 0.45,
+		shyness: 0.6,
+		territoriality: 0.3,
+		aggressiveness: 0.15,
+		sociability: 0.6,
+		energy: 0.3,
+		nocturnal: 0.05,
+		personalityVariance: 0.1,
+	},
+	schooling: {
+		neighborRadius: 0.4,
+		separationDistance: 0.16,
+		alignment: 0.35,
+		cohesion: 0.4,
+		maxNeighbors: 3,
+	},
+	feeding: {
+		attractionRadius: 0.5,
+		feedingSpeed: 1.3,
+		zones: { surface: 0.3, midwater: 1, bottom: 0.6 },
+		appetite: 0.1,
+	},
+	population: { count: 3, minCount: 1, maxCount: 5 },
+	catalog: {
+		group: "openWater",
+		plural: "discus",
+		note: "Round, shy and unhurried",
+		swatch: { colors: ["#8b3a22", "#36b3c4", "#8b3a22", "#36b3c4", "#a8522c"] },
+	},
+	visual: {
+		lodDistances: [1.4, 2.6],
+		shape: {
+			bodyLength: 0.84,
+			crossSection: 2,
+			keel: 0.55,
+			profile: [
+				{ t: 0, top: 0.03, bottom: 0.025, width: 0.012 },
+				{ t: 0.12, top: 0.18, bottom: 0.16, width: 0.03 },
+				{ t: 0.42, top: 0.27, bottom: 0.26, width: 0.038 },
+				{ t: 0.7, top: 0.22, bottom: 0.21, width: 0.03 },
+				{ t: 0.9, top: 0.11, bottom: 0.1, width: 0.017 },
+				{ t: 1, top: 0.055, bottom: 0.052, width: 0.012 },
+			],
+			eye: { t: 0.15, y: 0.045, radius: 0.034 },
+			caudal: { kind: "rounded", spread: 0.26, fork: 0 },
+			// A low fringe of fin all round the back and belly, broadest at the rear.
+			dorsal: { start: 0.3, end: 0.97, height: 0.07, sweep: 0.06, peak: 0.75 },
+			anal: { start: 0.42, end: 0.97, height: 0.07, sweep: 0.06, peak: 0.75 },
+			pectoral: { t: 0.25, length: 0.07, width: 0.04 },
+			pelvic: { t: 0.32, length: 0.12, width: 0.025 },
+		},
+		pattern: {
+			kind: "discus",
+			back: "#8b3a22",
+			belly: "#a8522c",
+			fin: "#7c3a26",
+			accent: "#36b3c4",
+			accent2: "#d2541e",
+			finOpacity: 0.8,
+			iridescence: 0.5,
+			silver: 0.15,
+			hueVariation: 0.03,
+			nightFade: 0.35,
+			iris: "#c8281c",
+			scales: { size: 0.018, contrast: 0.15 },
 		},
 	},
 }
@@ -802,7 +1313,13 @@ const goldfish: FishSpeciesDefinition = {
 		appetite: 0.2,
 		forage: { style: "peck", tendency: 0.35 },
 	},
-	population: { count: 2, minCount: 1 },
+	population: { count: 2, minCount: 1, maxCount: 4 },
+	catalog: {
+		group: "openWater",
+		plural: "fantail goldfish",
+		note: "Twin-tailed and always hungry",
+		swatch: { colors: ["#d9521a", "#f2a443"] },
+	},
 	visual: {
 		lodDistances: [1.2, 2.2],
 		shape: {
@@ -888,7 +1405,13 @@ const koi: FishSpeciesDefinition = {
 		appetite: 0.18,
 		forage: { style: "peck", tendency: 0.35 },
 	},
-	population: { count: 2, minCount: 2 },
+	population: { count: 2, minCount: 1, maxCount: 3 },
+	catalog: {
+		group: "openWater",
+		plural: "koi",
+		note: "Each one marked differently",
+		swatch: { colors: ["#ece8dd", "#c8341c", "#ece8dd"] },
+	},
 	visual: {
 		lodDistances: [1.4, 2.6],
 		shape: {
@@ -976,7 +1499,13 @@ const bristlenosePleco: FishSpeciesDefinition = {
 		appetite: 0.08,
 		forage: { style: "cling", tendency: 1 },
 	},
-	population: { count: 1, minCount: 1 },
+	population: { count: 1, minCount: 1, maxCount: 2 },
+	catalog: {
+		group: "bottom",
+		plural: "bristlenose plecos",
+		note: "Cleans glass, stone and wood",
+		swatch: { colors: ["#4a4740", "#6b665a"] },
+	},
 	visual: {
 		lodDistances: [1.3, 2.4],
 		shape: {
@@ -1020,19 +1549,135 @@ const bristlenosePleco: FishSpeciesDefinition = {
 	},
 }
 
+const otocinclus: FishSpeciesDefinition = {
+	id: "otocinclus",
+	name: "Otocinclus",
+	scientificName: "Otocinclus vittatus",
+	model: "procedural:suckermouth",
+	scale: 0.042,
+	sizeVariation: 0.08,
+	preferredDepth: { min: 0, max: 0.4 },
+	movement: {
+		minSpeed: 0,
+		cruiseSpeed: 0.025,
+		maxSpeed: 0.08,
+		burstSpeed: 0.22,
+		acceleration: 0.7,
+		turnRate: 3.2,
+		swimStyle: "bottomHop",
+		maxPitch: 0.7,
+		tailBeat: { baseFrequency: 2.6, frequencyPerBodyLength: 1.4, amplitude: 0.07 },
+		kickInterval: { min: 0.6, max: 2.0 },
+	},
+	behavior: {
+		schooling: 0.45,
+		curiosity: 0.25,
+		shyness: 0.6,
+		territoriality: 0,
+		aggressiveness: 0,
+		sociability: 0.75,
+		energy: 0.45,
+		nocturnal: 0.35,
+		personalityVariance: 0.12,
+	},
+	schooling: {
+		neighborRadius: 0.22,
+		separationDistance: 0.035,
+		alignment: 0.2,
+		cohesion: 0.4,
+		maxNeighbors: 3,
+	},
+	feeding: {
+		attractionRadius: 0.3,
+		feedingSpeed: 1.4,
+		zones: { surface: 0, midwater: 0.05, bottom: 1 },
+		appetite: 0.08,
+		forage: { style: "cling", tendency: 1 },
+	},
+	population: { count: 4, minCount: 3, maxCount: 8 },
+	catalog: {
+		group: "bottom",
+		plural: "otocinclus",
+		note: "A small crew of algae eaters",
+		swatch: { colors: ["#9b8d6c", "#3a3126", "#e8e2d0"] },
+	},
+	visual: {
+		lodDistances: [0.8, 1.7],
+		shape: {
+			bodyLength: 0.82,
+			crossSection: 2.2,
+			bellyCrossSection: 3,
+			keel: 0.2,
+			mouth: "inferior",
+			profile: [
+				{ t: 0, top: 0.022, bottom: 0.016, width: 0.04 },
+				{ t: 0.14, top: 0.075, bottom: 0.045, width: 0.085 },
+				{ t: 0.34, top: 0.09, bottom: 0.05, width: 0.08 },
+				{ t: 0.6, top: 0.07, bottom: 0.04, width: 0.05 },
+				{ t: 0.86, top: 0.04, bottom: 0.03, width: 0.026 },
+				{ t: 1, top: 0.034, bottom: 0.028, width: 0.018 },
+			],
+			eye: { t: 0.17, y: 0.045, radius: 0.03 },
+			caudal: { kind: "forked", spread: 0.22, fork: 0.35 },
+			dorsal: { start: 0.32, end: 0.46, height: 0.12, sweep: 0.07 },
+			anal: { start: 0.66, end: 0.74, height: 0.04, sweep: 0.02 },
+			pectoral: { t: 0.17, length: 0.13, width: 0.05, splay: 0.9 },
+			pelvic: { t: 0.45, length: 0.1, width: 0.045, splay: 0.8 },
+		},
+		pattern: {
+			kind: "otocinclus",
+			back: "#9b8d6c",
+			belly: "#e8e2d0",
+			fin: "#c8bfa8",
+			accent: "#2e271e",
+			accent2: "#5f5440",
+			finOpacity: 0.4,
+			iridescence: 0.1,
+			silver: 0.25,
+			hueVariation: 0.01,
+			nightFade: 0.05,
+			iris: "#a8a07a",
+			scales: { size: 0.04, contrast: 0.12 },
+		},
+	},
+}
+
+/** Every species AquaZen can keep, in the order the fish list shows them. */
 export const SPECIES: readonly FishSpeciesDefinition[] = [
 	neonTetra,
 	harlequinRasbora,
 	zebraDanio,
+	rummyNoseTetra,
+	tigerBarb,
 	guppy,
+	blackMolly,
+	swordtail,
 	angelfish,
 	betta,
 	dwarfGourami,
-	pandaCorydoras,
-	blackMolly,
+	discus,
 	goldfish,
 	koi,
+	pandaCorydoras,
+	clownLoach,
 	bristlenosePleco,
+	otocinclus,
+]
+
+/** The fish in a new tank. The others can be added from the fish list. */
+export const STARTER_SPECIES: readonly string[] = [
+	"neon-tetra",
+	"harlequin-rasbora",
+	"zebra-danio",
+	"guppy",
+	"angelfish",
+	"betta",
+	"dwarf-gourami",
+	"panda-corydoras",
+	"black-molly",
+	"goldfish",
+	"koi",
+	"bristlenose-pleco",
 ]
 
 export const SPECIES_BY_ID: ReadonlyMap<string, FishSpeciesDefinition> = new Map(
@@ -1044,3 +1689,8 @@ export function getSpecies(id: string): FishSpeciesDefinition {
 	if (!species) throw new Error(`Unknown fish species: ${id}`)
 	return species
 }
+
+/** The starter tank: each starter species at its usual group size. */
+export const STARTER_ROSTER: Roster = Object.fromEntries(
+	STARTER_SPECIES.map((id) => [id, getSpecies(id).population.count]),
+)

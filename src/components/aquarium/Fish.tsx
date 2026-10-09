@@ -1,7 +1,7 @@
 "use client"
 
 import { useFrame } from "@react-three/fiber"
-import { useEffect, useMemo } from "react"
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react"
 import {
 	DynamicDrawUsage,
 	InstancedBufferAttribute,
@@ -11,14 +11,12 @@ import {
 	Vector3,
 	type BufferGeometry,
 } from "three"
-import { QUALITY_PRESETS } from "@/config/quality"
-import { SPECIES } from "@/config/species"
+import { SPECIES_BY_ID } from "@/config/species"
 import { useQualityPreset } from "@/hooks/useQualityPreset"
 import { clamp } from "@/simulation/core/math"
 import type { FishAgent } from "@/simulation/fish/FishAgent"
-import { speciesCount } from "@/simulation/fish/population"
 import type { FishSpeciesDefinition } from "@/simulation/fish/types"
-import { getFishAssets } from "@/three/assets"
+import { getFishGeometry } from "@/three/assets"
 import type { FishGeometrySet } from "@/three/geometry/fishGeometry"
 import { createFishMaterials } from "@/three/materials/fishMaterial"
 import { useWorld } from "./WorldContext"
@@ -55,7 +53,7 @@ class FishLod {
 		this.look = new InstancedBufferAttribute(new Float32Array(capacity * 4), 4).setUsage(
 			DynamicDrawUsage,
 		)
-		this.identity = new InstancedBufferAttribute(new Float32Array(capacity * 2), 2).setUsage(
+		this.identity = new InstancedBufferAttribute(new Float32Array(capacity * 3), 3).setUsage(
 			DynamicDrawUsage,
 		)
 		for (const g of [body, fins] as BufferGeometry[]) {
@@ -101,7 +99,7 @@ class FishLod {
 			agent.finFlare,
 			clamp(agent.speed / Math.max(cruise, 1e-3), 0, 1),
 		)
-		this.identity.setXY(i, agent.seed % 1, agent.variety)
+		this.identity.setXYZ(i, agent.seed % 1, agent.variety, agent.presence)
 	}
 
 	commit(): void {
@@ -125,9 +123,9 @@ class FishLod {
 function SpeciesFish({ species }: { species: FishSpeciesDefinition }) {
 	const world = useWorld()
 	const preset = useQualityPreset()
-	const assets = getFishAssets(preset)
-	const geometry = assets.geometries.get(species.id)!
-	const capacity = speciesCount(species, QUALITY_PRESETS.ultra.fishDensity) + 2
+	const geometry = getFishGeometry(preset, species)
+	// Fish on their way out turn back before new ones arrive, so a group never exceeds its maximum.
+	const capacity = species.population.maxCount
 
 	const { near, far, materials } = useMemo(() => {
 		const materials = createFishMaterials(species, preset.causticLayers)
@@ -169,12 +167,32 @@ function SpeciesFish({ species }: { species: FishSpeciesDefinition }) {
 	)
 }
 
+/** The species in the tank right now. Re-renders only when a species arrives or has gone. */
+function useSpeciesInTank(): FishSpeciesDefinition[] {
+	const world = useWorld()
+	const subscribe = useCallback(
+		(onChange: () => void) => world.events.on("population:changed", onChange),
+		[world],
+	)
+	const readComposition = () => world.fish.composition
+	const composition = useSyncExternalStore(subscribe, readComposition, readComposition)
+	return useMemo(
+		() =>
+			composition
+				.split(",")
+				.map((id) => SPECIES_BY_ID.get(id))
+				.filter((species) => species !== undefined),
+		[composition],
+	)
+}
+
 /** Every fish in the tank: per species, a handful of instanced draw calls. */
 export function Fish() {
+	const species = useSpeciesInTank()
 	return (
 		<group>
-			{SPECIES.map((species) => (
-				<SpeciesFish key={species.id} species={species} />
+			{species.map((s) => (
+				<SpeciesFish key={s.id} species={s} />
 			))}
 		</group>
 	)

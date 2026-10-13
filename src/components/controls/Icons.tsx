@@ -42,11 +42,33 @@ export const AutoIcon = () => (
 	</Icon>
 )
 
+/** The pendant light above the tank, with light falling from it — faint while it is off. */
+export const TankLightIcon = ({ on }: { on: boolean }) => (
+	<Icon>
+		<path d="M8 4v2.6M16 4v2.6" />
+		<rect x="4" y="6.6" width="16" height="3" rx="1.5" />
+		<path
+			d="m8.4 13.2-.9 3.8M12 13.4v4.2M15.6 13.2l.9 3.8"
+			opacity={on ? 1 : 0.3}
+			className="transition-opacity duration-500"
+		/>
+	</Icon>
+)
+
 /** Pinch of flakes falling. */
 export const FeedIcon = () => (
 	<Icon>
 		<path d="M8.5 4.5c1.6 1.1 5.4 1.1 7 0" />
 		<path d="m9.6 9.6 1.4 1M14.3 11.4l-1.5.7M11.1 14.6l1.2 1.2M14.9 17.3l-1.5.4M10 19.6l1.3-.6" />
+	</Icon>
+)
+
+/** A fish in profile: the fish in the tank. */
+export const FishIcon = () => (
+	<Icon>
+		<path d="M6.6 12c2.4-3.5 7.6-5 11.2-2.7.9.6 1.9 1.6 2.7 2.7-.8 1.1-1.8 2.1-2.7 2.7C14.2 17 9 15.5 6.6 12Z" />
+		<path d="M6.6 12 3.2 8.8c.7 2.1.7 4.3 0 6.4Z" />
+		<circle cx="16.4" cy="11.2" r="0.55" fill="currentColor" stroke="none" />
 	</Icon>
 )
 

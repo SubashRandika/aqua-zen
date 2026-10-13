@@ -30,7 +30,7 @@ function watchability(agent: FishAgent): number {
 
 /** Starts the camera following a fish chosen for being pleasant to watch. */
 export function watchAFish(world: AquariumWorld, excludeId?: number): void {
-	const candidates = world.fish.agents.filter((a) => a.id !== excludeId)
+	const candidates = world.fish.agents.filter((a) => a.id !== excludeId && !a.leaving)
 	if (candidates.length === 0) return
 	const chosen = candidates.reduce((best, agent) =>
 		watchability(agent) > watchability(best) ? agent : best,

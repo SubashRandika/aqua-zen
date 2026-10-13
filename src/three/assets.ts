@@ -1,7 +1,8 @@
 import { Color, type BufferGeometry } from "three"
 import type { QualityPreset } from "@/config/quality"
 import { DRIFTWOOD, ROCKS } from "@/config/scape"
-import { SPECIES } from "@/config/species"
+import { SPECIES_BY_ID } from "@/config/species"
+import type { FishSpeciesDefinition } from "@/simulation/fish/types"
 import { createDriftwoodGeometry } from "./geometry/driftwoodGeometry"
 import { createFishGeometry, lowDetail, type FishGeometrySet } from "./geometry/fishGeometry"
 import {
@@ -30,8 +31,9 @@ export interface PlantAssets {
 	stemLeaf: BufferGeometry
 }
 
-export interface FishAssets {
-	geometries: Map<string, { near: FishGeometrySet; far: FishGeometrySet }>
+export interface FishGeometryLods {
+	near: FishGeometrySet
+	far: FishGeometrySet
 }
 
 export type LoadingStep = "scape" | "plants" | "fish"
@@ -44,7 +46,7 @@ export type LoadingStep = "scape" | "plants" | "fish"
  */
 const scapeCache = new Map<number, ScapeAssets>()
 const plantCache = new Map<number, PlantAssets>()
-const fishCache = new Map<string, FishAssets>()
+const fishCache = new Map<string, FishGeometryLods>()
 
 export function getScapeAssets(preset: QualityPreset): ScapeAssets {
 	const key = preset.rockDetail
@@ -90,27 +92,32 @@ export function getPlantAssets(preset: QualityPreset): PlantAssets {
 	return assets
 }
 
-export function getFishAssets(preset: QualityPreset): FishAssets {
-	const key = `${preset.fishDetail.radial}:${preset.fishDetail.lengthwise}`
-	let assets = fishCache.get(key)
-	if (!assets) {
-		const geometries = new Map<string, { near: FishGeometrySet; far: FishGeometrySet }>()
-		for (const species of SPECIES) {
-			geometries.set(species.id, {
-				near: createFishGeometry(species.visual.shape, preset.fishDetail),
-				far: createFishGeometry(species.visual.shape, lowDetail(preset.fishDetail)),
-			})
+/**
+ * A species' body and fins at two levels of detail. Built when the species
+ * first enters the tank, so fish added later cost a few milliseconds then.
+ */
+export function getFishGeometry(
+	preset: QualityPreset,
+	species: FishSpeciesDefinition,
+): FishGeometryLods {
+	const key = `${species.id}:${preset.fishDetail.radial}:${preset.fishDetail.lengthwise}`
+	let lods = fishCache.get(key)
+	if (!lods) {
+		lods = {
+			near: createFishGeometry(species.visual.shape, preset.fishDetail),
+			far: createFishGeometry(species.visual.shape, lowDetail(preset.fishDetail)),
 		}
-		assets = { geometries }
-		fishCache.set(key, assets)
+		fishCache.set(key, lods)
 	}
-	return assets
+	return lods
 }
 
 const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
 
+/** Builds the scene's assets, and the fish of the given species, before the aquarium opens. */
 export async function prepareAssets(
 	preset: QualityPreset,
+	speciesIds: readonly string[],
 	onStep: (step: LoadingStep) => void,
 ): Promise<void> {
 	onStep("scape")
@@ -121,6 +128,9 @@ export async function prepareAssets(
 	getPlantAssets(preset)
 	onStep("fish")
 	await nextFrame()
-	getFishAssets(preset)
+	for (const id of speciesIds) {
+		const species = SPECIES_BY_ID.get(id)
+		if (species) getFishGeometry(preset, species)
+	}
 	await nextFrame()
 }

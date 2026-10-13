@@ -12,6 +12,7 @@ import {
 	type CanvasTexture,
 	type ShaderMaterial,
 } from "three"
+import { TANK_LIGHT } from "@/config/dayNight"
 import { TANK, TANK_INTERIOR } from "@/config/tank"
 import { useQualityPreset } from "@/hooks/useQualityPreset"
 import { createBackdropMaterial } from "@/three/effects/backdropMaterial"
@@ -27,6 +28,9 @@ const T = TANK.glassThickness
 const W = TANK.width
 const H = TANK.height
 const D = TANK.depth
+
+/** Key light intensity at which the water surface reaches full brightness. */
+const SURFACE_FULL_KEY = 3.4
 
 interface Pane {
 	size: [number, number, number]
@@ -170,15 +174,16 @@ export function Tank() {
 			.multiplyScalar(0.25 + 0.75 * reveal)
 		backdrop.uniforms.uBottom!.value.setRGB(...profile.backdropBottom)
 		const light = surface.uniforms.uLight!.value as Color
-		light.setRGB(...profile.keyColor).multiplyScalar(0.25 + profile.fixtureGlow * reveal * 0.75)
+		const keyLevel = Math.min(1, profile.keyIntensity / SURFACE_FULL_KEY)
+		light.setRGB(...profile.keyColor).multiplyScalar(0.25 + keyLevel * reveal * 0.75)
 		light.r += profile.moonColor[0] * profile.moonGlow * 0.15
 		light.g += profile.moonColor[1] * profile.moonGlow * 0.15
 		light.b += profile.moonColor[2] * profile.moonGlow * 0.15
 		;(surface.uniforms.uDeep!.value as Color).setRGB(...profile.waterColor)
 		;(surface.uniforms.uSky!.value as Color).setRGB(...profile.backdropTop)
 		;(meniscus.uniforms.uLight!.value as Color).copy(light)
-		fixtureGlow.emissive.setRGB(...profile.keyColor)
-		fixtureGlow.emissiveIntensity = profile.fixtureGlow * reveal * 1.1
+		fixtureGlow.emissive.setRGB(...TANK_LIGHT.color)
+		fixtureGlow.emissiveIntensity = world.lighting.tankLight.level * reveal * 1.1
 		moonStrip.emissiveIntensity = profile.moonGlow * 1.2
 		if (mark) mark.uniforms.uLight!.value = profile.environmentIntensity * 2
 	})

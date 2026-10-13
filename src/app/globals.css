@@ -70,6 +70,24 @@
 		background: rgb(11 16 18 / 0.78);
 	}
 
+	.glass-panel--dense {
+		background: rgb(10 14 16 / 0.88);
+	}
+
+	/* A scrolling list inside a panel: a hairline scrollbar, and rows that fade at the edges. */
+	.az-scroll {
+		scrollbar-width: thin;
+		scrollbar-color: var(--color-hairline-strong) transparent;
+		overscroll-behavior: contain;
+		mask-image: linear-gradient(
+			to bottom,
+			transparent,
+			black 10px,
+			black calc(100% - 14px),
+			transparent
+		);
+	}
+
 	@media (prefers-reduced-transparency: reduce) {
 		.glass-panel {
 			background: rgb(14 19 21 / 0.92);

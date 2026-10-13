@@ -10,6 +10,8 @@ export type FishState =
 	| "resting"
 	| "territorial"
 	| "hiding"
+	/** Picking over the substrate, or grazing algae while clinging to a surface. */
+	| "foraging"
 
 export interface Range {
 	min: number
@@ -35,6 +37,15 @@ export type PatternKind =
 	| "guppy"
 	| "gourami"
 	| "pandaCory"
+	| "goldfish"
+	| "koi"
+	| "pleco"
+	| "rummyNose"
+	| "tigerBarb"
+	| "swordtail"
+	| "discus"
+	| "clownLoach"
+	| "otocinclus"
 
 /** A point on the body outline. `t` runs from the nose (0) to the tail peduncle (1). */
 export interface BodyProfilePoint {
@@ -47,7 +58,11 @@ export interface BodyProfilePoint {
 	width: number
 }
 
-export type CaudalKind = "forked" | "rounded" | "fan" | "veil" | "truncate"
+/**
+ * `twin` is the split, splayed double tail of fancy goldfish; `sword` is a
+ * swordtail's, with the lowest rays drawn out into a long point.
+ */
+export type CaudalKind = "forked" | "rounded" | "fan" | "veil" | "truncate" | "twin" | "sword"
 
 export interface FinSpan {
 	/** Start and end along the body (0 nose → 1 peduncle). */
@@ -57,6 +72,8 @@ export interface FinSpan {
 	height: number
 	/** How far the fin tip trails backwards, as a fraction of total length. */
 	sweep: number
+	/** Where along its base the fin is tallest (0 front … 1 back). Defaults to 0.35. */
+	peak?: number
 }
 
 export interface PairedFin {
@@ -66,7 +83,25 @@ export interface PairedFin {
 	width: number
 	/** Long thread-like fins (gourami feelers). */
 	filament?: boolean
+	/** 0 = held against the flank, 1 = spread flat like a bottom dweller's. */
+	splay?: number
 }
+
+/** Whiskers around the mouth (corydoras, koi) or the fleshy bristles of a bristlenose pleco. */
+export interface BarbelSet {
+	/** Number of barbels on each side. */
+	pairs: number
+	length: number
+	/** Attachment height on the snout, as a fraction of total length (negative = below the centre line). */
+	y: number
+	/** How far each successive pair is set back along the head (0 nose → 1 peduncle). */
+	spacing: number
+	/** Bristles point up and forward from the top of the snout instead of down from the mouth. */
+	bristles?: boolean
+}
+
+/** Where the mouth opens: forward, upturned for surface feeders, or underslung for grazers. */
+export type MouthPosition = "terminal" | "superior" | "inferior"
 
 export interface FishShapeDefinition {
 	/** Fraction of total length taken by the body; the caudal fin fills the rest. */
@@ -74,6 +109,12 @@ export interface FishShapeDefinition {
 	profile: readonly BodyProfilePoint[]
 	/** Exponent of the superellipse cross-section (2 = ellipse, higher = boxier). */
 	crossSection: number
+	/** Exponent for the lower half, for flat-bellied bottom dwellers. Defaults to `crossSection`. */
+	bellyCrossSection?: number
+	/** How much the flanks narrow towards the ridge of the back (0 = not at all). Defaults to 0.3. */
+	keel?: number
+	mouth?: MouthPosition
+	barbels?: BarbelSet
 	eye: { t: number; y: number; radius: number }
 	caudal: { kind: CaudalKind; spread: number; fork: number }
 	dorsal?: FinSpan
@@ -100,6 +141,15 @@ export interface FishPatternDefinition {
 	hueVariation: number
 	/** How much colour fades while resting at night (neon tetras famously pale). */
 	nightFade: number
+	/** Iris colour. */
+	iris: string
+	/** Scale size as a fraction of total length, and how visible the scales are (0..1). */
+	scales: { size: number; contrast: number }
+	/**
+	 * Number of distinct colour varieties among individuals (koi varieties,
+	 * goldfish colourings). Each fish also gets its own placement of markings.
+	 */
+	varieties?: number
 }
 
 export interface FishSpeciesDefinition {
@@ -165,12 +215,33 @@ export interface FishSpeciesDefinition {
 		zones: { surface: number; midwater: number; bottom: number }
 		/** Hunger gained per minute of activity. */
 		appetite: number
+		/**
+		 * Foraging between meals: `peck` picks over the substrate nose-down
+		 * (goldfish, koi, corydoras); `cling` grazes algae while holding on to
+		 * glass, stone and wood with a sucker mouth (plecos).
+		 */
+		forage?: { style: "peck" | "cling"; tendency: number }
 	}
 	population: {
-		/** Number of fish at "high" quality. */
+		/** Group size when the species is added to the tank. */
 		count: number
-		/** Never fewer than this, so schooling species still school. */
+		/** Smallest group the tank keeps, so schooling species still school. */
 		minCount: number
+		/** Largest group the tank has room for. */
+		maxCount: number
+	}
+	/** How the species is listed when choosing the fish in the tank. */
+	catalog: {
+		group: SpeciesGroup
+		/** Plural for messages ("neon tetras", "koi"). */
+		plural: string
+		/** One short line about how it lives in the tank. */
+		note: string
+		/**
+		 * A small portrait for the list: body colours from back to belly, and
+		 * where any bars cross the body (0 nose → 1 tail), dark unless given a colour.
+		 */
+		swatch: { colors: readonly string[]; bars?: readonly number[]; barColor?: string }
 	}
 	visual: {
 		/** Camera distances at which to switch to lower-detail geometry. */
@@ -179,6 +250,9 @@ export interface FishSpeciesDefinition {
 		pattern: FishPatternDefinition
 	}
 }
+
+/** Where a species lives in the tank, used to group the fish list. */
+export type SpeciesGroup = "shoaling" | "openWater" | "bottom"
 
 export interface FishPersonality {
 	curiosity: number

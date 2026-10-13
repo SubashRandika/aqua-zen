@@ -3,7 +3,7 @@ import type { QualityLevel } from "@/config/quality"
 import type { DayPhase } from "@/simulation/core/events"
 
 export type LoadingStage = "scape" | "plants" | "fish" | "lights" | "ready"
-export type Panel = "sound" | "camera" | "settings" | null
+export type Panel = "fish" | "sound" | "camera" | "settings" | null
 export type AudioStatus = "idle" | "running" | "suspended" | "unavailable"
 
 export interface FollowTarget {

@@ -1,3 +1,4 @@
+import { STARTER_ROSTER } from "@/config/species"
 import {
 	DEFAULT_SETTINGS,
 	migrateSettings,
@@ -16,6 +17,7 @@ describe("settings persistence", () => {
 		const result = sanitizeSettings({
 			audio: { sound: true, music: "yes", volume: 7 },
 			lightMode: "night",
+			tankLight: "bright",
 			cycleMinutes: 13,
 			aquariumHour: -4,
 			quality: "potato",
@@ -24,6 +26,7 @@ describe("settings persistence", () => {
 		})
 		expect(result.audio).toEqual({ sound: true, music: DEFAULT_SETTINGS.audio.music, volume: 1 })
 		expect(result.lightMode).toBe("night")
+		expect(result.tankLight).toBe(DEFAULT_SETTINGS.tankLight)
 		expect(result.cycleMinutes).toBe(DEFAULT_SETTINGS.cycleMinutes)
 		expect(result.aquariumHour).toBe(0)
 		expect(result.quality).toBe("auto")
@@ -42,6 +45,28 @@ describe("settings persistence", () => {
 		const result = migrateSettings({ muted: false, lightMode: "day" }, 1, migrations, 2)
 		expect(result.audio).toEqual({ sound: true, music: false, volume: 0.4 })
 		expect(result.lightMode).toBe("day")
+	})
+
+	it("starts the tank light where a version 1 user's light mode would have it", () => {
+		expect(migrateSettings({ lightMode: "night", aquariumHour: 12 }, 1).tankLight).toBe(false)
+		expect(migrateSettings({ lightMode: "day", aquariumHour: 2 }, 1).tankLight).toBe(true)
+		expect(migrateSettings({ lightMode: "auto", aquariumHour: 23 }, 1).tankLight).toBe(false)
+		expect(migrateSettings({ lightMode: "auto", aquariumHour: 10 }, 1).tankLight).toBe(true)
+		expect(migrateSettings({ lightMode: "disco" }, 1).tankLight).toBe(DEFAULT_SETTINGS.tankLight)
+	})
+
+	it("keeps the fish a version 2 user already had", () => {
+		expect(migrateSettings({ lightMode: "day" }, 2).roster).toEqual(STARTER_ROSTER)
+	})
+
+	it("keeps only known species, at group sizes the tank allows", () => {
+		const roster = sanitizeSettings({
+			roster: { "neon-tetra": 400, discus: 2, betta: 0, guppy: -3, "sea-dragon": 2, koi: "many" },
+		}).roster
+		expect(roster).toEqual({ "neon-tetra": 24, discus: 2 })
+		expect(sanitizeSettings({ roster: [1, 2] }).roster).toEqual(DEFAULT_SETTINGS.roster)
+		// An empty tank is a valid choice.
+		expect(sanitizeSettings({ roster: {} }).roster).toEqual({})
 	})
 
 	it("leaves current-version data unchanged apart from validation", () => {

@@ -1,18 +1,22 @@
 # AquaZen
 
-A calm, cinematic aquarium for your screen. Nine species of fish live their own lives among stone, driftwood and swaying plants, under a slow day and night. Nothing follows a path: every fish is an autonomous agent with its own personality, hunger, energy and fears.
+A calm, cinematic aquarium for your screen. Fish you choose from eighteen species live their own lives among stone, driftwood and swaying plants, under a slow day and night. Nothing follows a path: every fish is an autonomous agent with its own personality, hunger, energy and fears.
 
 Built with Next.js, React Three Fiber and three.js. Everything you see and hear is generated in code. There are no 3D models, textures or audio files, so there's nothing to license (see [docs/assets.md](docs/assets.md)).
 
 ## What's in the tank
 
-- **Nine species**, each configured by data: neon tetra, harlequin rasbora, zebra danio, guppy, angelfish, betta, dwarf gourami, panda corydoras and black molly. They differ in size, speed, depth, swimming style, temperament and patterning.
+- **Eighteen species**, each configured by data. The starter tank holds neon tetras, harlequin rasboras, zebra danios, guppies, angelfish, a betta, dwarf gouramis, panda corydoras, black mollies, fantail goldfish, young koi and a bristlenose pleco. Rummy-nose tetras, tiger barbs, swordtails, discus, clown loaches and otocinclus can be added. They differ in size, speed, depth, swimming style, temperament and patterning.
+- **Your choice of fish.** The Fish panel lists every species, grouped by where it lives, each with a small portrait traced from its own body plan. Switch a species on and its group swims out from the plants; switch it off and the fish swim into cover and fade away. Group sizes stay within what suits the species: schooling fish always make a proper school, and the tank keeps only one betta.
+- **Natural looks.** Bodies have scales that catch the light, gill covers, a lateral line, lips and eyes with a coloured iris. Fins are thin membranes over visible rays, fraying slightly at the edge. Markings follow the body's contours, and koi, goldfish and guppies each carry their own: kohaku, sanke, showa and ogon koi, red-and-white or lemon goldfish.
 - **Individual personalities.** Traits are sampled per fish along a bold–shy axis, so one neon tetra is restless and curious and another is timid and slow.
-- **Emergent behaviour.** Wandering, cruising, loose schooling, resting, hiding, grazing, territorial chases, curiosity and feeding are chosen by weighted utilities with hysteresis. Schools split, regroup and pass alarm along their members.
-- **Real swimming.** Fish steer by turning a heading at limited rates; they can't strafe. Tetras and danios swim in bursts and glides, corydoras hop along the bottom, and the body wave, tail beat and fin sculling follow speed and turning.
-- **Feeding.** Flakes float, soak, flutter down in the current and settle. Fish notice them at different moments, approach from different sides, compete for flakes, eat in bites and drift back to normal life.
+- **Emergent behaviour.** Wandering, cruising, loose schooling, resting, hiding, foraging, territorial chases, curiosity and feeding are chosen by weighted utilities with hysteresis. Schools split, regroup and pass alarm along their members.
+- **Foraging between meals.** Goldfish, koi, corydoras and clown loaches pick over the substrate nose-down in little darts. The pleco and the otocinclus, the tank's cleaners, hold on to the glass, stones, wood and substrate with their sucker mouths and graze in slow shuffles, so you often see a belly and mouth disc against the front glass.
+- **Real swimming.** Fish steer by turning a heading; they can't strafe. Turns have momentum, building up and easing off, and the body curves into a turn just before the heading follows. Tetras and danios swim in bursts and glides and turn with a kick of the tail, corydoras and plecos hop along the bottom and settle when they stop, and the body wave, tail beat and fin sculling follow speed and turning.
+- **Feeding.** A pinch is mixed flake food with a few sinking pellets for the bottom feeders. Flakes float flat and drift together on the surface film, soak, then rock down like falling leaves and settle; bitten flakes shed crumbs. Fish notice the food at different moments, approach from different sides, compete for it, eat in bites and drift back to normal life.
 - **Glass interaction.** A tap startles shy fish, and the alarm spreads through schools. Curious fish come to investigate afterwards. Rest a finger on the glass and the bold ones come close.
-- **Day and night.** A simulated clock (or your local time) drives lighting and behaviour: diurnal fish rest and lose colour at night, while corydoras become more active.
+- **Day and night.** A simulated clock (or your local time) drives the room's light and the fish's rhythm: diurnal fish rest and lose colour at night, while corydoras become more active.
+- **Tank light.** The LED light above the tank runs on a timer, like a real aquarium's, and you can switch it on or off whenever you like. Switch it on at night and the fish wake up.
 - **Sound.** Optional synthesised water ambience, air-stone bubbles and generative ambient music.
 
 ## Getting started
@@ -41,36 +45,52 @@ Copy `.env.example` to `.env.local` to set `NEXT_PUBLIC_SITE_URL`, which social 
 
 Controls fade away when you're just watching and come back as soon as you move the pointer, touch the screen or press a key.
 
-| Control  | What it does                                                                                       |
-| -------- | -------------------------------------------------------------------------------------------------- |
-| Auto     | Lighting follows the aquarium's own day                                                            |
-| Day      | Lights stay on                                                                                     |
-| Night    | Moonlight                                                                                          |
-| Feed     | Drops a pinch of food. For a few seconds after, tapping the water drops food where you tap         |
-| Sound    | Water sounds, music and volume                                                                     |
-| View     | Seated (still, with gentle motion) or Explore (drag, scroll or pinch). Watch a fish, or reset view |
-| Settings | Quality, length of a day, reduced motion, reduced effects                                          |
+| Control    | What it does                                                                                                                                     |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Auto       | Lighting follows the aquarium's own day                                                                                                          |
+| Day        | Daylight, with the tank light on                                                                                                                 |
+| Night      | Moonlight, with the tank light off                                                                                                               |
+| Tank light | Switches the light above the tank on or off. In Auto it runs on a timer from 07:30 to 18:30; a switch by hand holds until the timer next changes |
+| Feed       | Drops a pinch of food. For a few seconds after, tapping the water drops food where you tap                                                       |
+| Fish       | Choose the species in the tank and how many of each. Restore the starter fish at any time                                                        |
+| Sound      | Water sounds, music and volume                                                                                                                   |
+| View       | Seated (still, with gentle motion) or Explore (drag, scroll or pinch). Watch a fish, or reset view                                               |
+| Settings   | Quality, length of a day, reduced motion, reduced effects                                                                                        |
 
-Keyboard: **F** feed · **A / D / N** auto, day, night · **M** sound · **C** seated or explore · **W** watch a fish · **R** reset view · **H** hide controls · **Esc** close or stop.
+Keyboard: **F** feed · **A / D / N** auto, day, night · **L** tank light · **M** sound · **C** seated or explore · **W** watch a fish · **R** reset view · **H** hide controls · **Esc** close or stop.
 
-Settings persist in `localStorage` under a versioned schema: sound, music, volume, lighting mode, day length, the aquarium's clock, quality, camera mode and accessibility preferences.
+Settings persist in `localStorage` under a versioned schema: the fish in the tank, sound, music, volume, lighting mode, tank light, day length, the aquarium's clock, quality, camera mode and accessibility preferences.
 
 ## Quality and performance
 
 Quality has four tiers plus **Auto**. Auto picks a starting tier from the device (GPU, memory, cores, screen size, phone or tablet), then adjusts resolution and tier from the measured frame rate. It never climbs into Ultra on its own.
 
-Measured in Chrome on an AMD Radeon 860M integrated GPU at 1600×900:
+Each tier has a limit on the number of fish it animates. A tank within the limit is kept exactly as chosen. Above it, every group shrinks in proportion, but never below the smallest group its species schools in, so a tank holding every species runs a little over the limit on Low.
 
-| Tier  | Fish | FPS | Draw calls / frame | Triangles / frame |
-| ----- | ---- | --- | ------------------ | ----------------- |
-| Low   | 31   | 60  | 69                 | 76k               |
-| High  | 53   | 60  | 104                | 179k              |
-| Ultra | 69   | 42  | 108                | 274k              |
+Measured in Chrome on an AMD Radeon 860M integrated GPU at 1600×900. Ultra varies by about ±5 FPS between runs.
+
+With the starter fish:
+
+| Tier   | Fish limit | Fish | FPS | Draw calls / frame | Triangles / frame |
+| ------ | ---------- | ---- | --- | ------------------ | ----------------- |
+| Low    | 36         | 37   | 60  | 78                 | 79k               |
+| Medium | 52         | 52   | 60  | 101                | 141k              |
+| High   | 72         | 58   | 60  | 122                | 195k              |
+| Ultra  | 96         | 58   | 45  | 118                | 272k              |
+
+With all eighteen species at their usual group sizes:
+
+| Tier   | Fish | FPS | Draw calls / frame | Triangles / frame |
+| ------ | ---- | --- | ------------------ | ----------------- |
+| Low    | 50   | 60  | 96                 | 83k               |
+| Medium | 58   | 60  | 126                | 149k              |
+| High   | 73   | 59  | 149                | 215k              |
+| Ultra  | 89   | 50  | 143                | 338k              |
 
 The main techniques:
 
 - Simulation state lives outside React. React only re-renders for UI changes, never per frame.
-- Instancing is used for fish (four draw calls per species), plants, food and particles.
+- Instancing is used for fish (four draw calls per species in the tank), plants, food and particles. A species' geometry is built the first time it enters the tank.
 - Fish switch between two geometry levels of detail by camera distance.
 - Bubbles, particles and light shafts animate entirely on the GPU.
 - Caustics are rendered once per frame into a small tileable texture that every surface samples.

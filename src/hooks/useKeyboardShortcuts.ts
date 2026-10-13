@@ -28,11 +28,15 @@ export function useKeyboardShortcuts(world: AquariumWorld, toggleHidden: () => v
 					break
 				case "d":
 					settings.setLightMode("day")
-					session.announce("Lights on.")
+					session.announce("Daylight.")
 					break
 				case "n":
 					settings.setLightMode("night")
-					session.announce("Moonlight.")
+					session.announce("Night.")
+					break
+				case "l":
+					settings.setTankLight(!settings.tankLight)
+					session.announce(settings.tankLight ? "Tank light off." : "Tank light on.")
 					break
 				case "m":
 					settings.setSound(!settings.audio.sound)

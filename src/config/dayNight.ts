@@ -3,8 +3,9 @@ import type { DayPhase } from "@/simulation/core/events"
 export type RGB = readonly [number, number, number]
 
 /**
- * Everything about the aquarium's light at one moment. Interpolated between
- * keyframes in automatic mode and eased towards in manual mode.
+ * Everything about the aquarium's light at one moment. The keyframes below
+ * describe natural light only (the room's daylight or moonlight); the tank
+ * light is added on top by `withTankLight`.
  */
 export interface LightingProfile {
 	/** 0 at deep night, 1 at full daylight. Drives fish behaviour. */
@@ -22,11 +23,10 @@ export interface LightingProfile {
 	backdropBottom: RGB
 	causticIntensity: number
 	shaftIntensity: number
-	/** Emission of the light fixture above the tank. */
-	fixtureGlow: number
 	/** Brightness of the moonlight LEDs in the fixture. */
 	moonGlow: number
 	environmentIntensity: number
+	/** Tone-mapping exposure; a little higher in the dark, as eyes adapt. */
 	exposure: number
 }
 
@@ -39,143 +39,136 @@ const NIGHT: LightingProfile = {
 	daylight: 0.02,
 	keyColor: [0.5, 0.6, 0.9],
 	keyIntensity: 0.0,
-	skyColor: [0.16, 0.24, 0.42],
-	groundColor: [0.02, 0.03, 0.04],
-	fillIntensity: 0.32,
-	moonColor: [0.48, 0.64, 1.0],
-	moonIntensity: 0.75,
-	waterColor: [0.012, 0.03, 0.06],
-	backdropTop: [0.035, 0.07, 0.14],
-	backdropBottom: [0.004, 0.008, 0.016],
-	causticIntensity: 0.12,
+	skyColor: [0.2, 0.3, 0.5],
+	groundColor: [0.03, 0.04, 0.06],
+	fillIntensity: 0.5,
+	moonColor: [0.5, 0.66, 1.0],
+	moonIntensity: 1.3,
+	waterColor: [0.02, 0.045, 0.085],
+	backdropTop: [0.06, 0.11, 0.21],
+	backdropBottom: [0.008, 0.014, 0.03],
+	causticIntensity: 0.18,
 	shaftIntensity: 0.0,
-	fixtureGlow: 0.0,
 	moonGlow: 1.0,
-	environmentIntensity: 0.12,
-	exposure: 1.0,
+	environmentIntensity: 0.18,
+	exposure: 1.3,
 }
 
 const SUNRISE: LightingProfile = {
 	daylight: 0.38,
-	keyColor: [1.0, 0.66, 0.42],
+	keyColor: [1.0, 0.68, 0.45],
 	keyIntensity: 1.5,
-	skyColor: [0.6, 0.5, 0.42],
-	groundColor: [0.12, 0.09, 0.06],
-	fillIntensity: 0.45,
-	moonColor: [0.48, 0.64, 1.0],
-	moonIntensity: 0.12,
-	waterColor: [0.08, 0.1, 0.1],
-	backdropTop: [0.34, 0.3, 0.26],
-	backdropBottom: [0.03, 0.04, 0.045],
-	causticIntensity: 0.45,
-	shaftIntensity: 0.35,
-	fixtureGlow: 0.45,
+	skyColor: [0.62, 0.52, 0.46],
+	groundColor: [0.13, 0.1, 0.07],
+	fillIntensity: 0.6,
+	moonColor: [0.5, 0.66, 1.0],
+	moonIntensity: 0.15,
+	waterColor: [0.08, 0.09, 0.1],
+	backdropTop: [0.42, 0.34, 0.28],
+	backdropBottom: [0.035, 0.04, 0.045],
+	causticIntensity: 0.35,
+	shaftIntensity: 0.4,
 	moonGlow: 0.15,
-	environmentIntensity: 0.3,
-	exposure: 1.0,
+	environmentIntensity: 0.35,
+	exposure: 1.1,
 }
 
 const MORNING: LightingProfile = {
 	daylight: 0.85,
-	keyColor: [1.0, 0.92, 0.8],
-	keyIntensity: 3.0,
-	skyColor: [0.72, 0.84, 0.86],
-	groundColor: [0.16, 0.15, 0.11],
-	fillIntensity: 0.42,
-	moonColor: [0.48, 0.64, 1.0],
+	keyColor: [1.0, 0.93, 0.84],
+	keyIntensity: 1.8,
+	skyColor: [0.74, 0.85, 0.88],
+	groundColor: [0.18, 0.16, 0.12],
+	fillIntensity: 0.68,
+	moonColor: [0.5, 0.66, 1.0],
 	moonIntensity: 0.0,
-	waterColor: [0.05, 0.12, 0.12],
+	waterColor: [0.06, 0.12, 0.12],
 	backdropTop: [0.36, 0.5, 0.48],
-	backdropBottom: [0.02, 0.045, 0.05],
-	causticIntensity: 0.9,
-	shaftIntensity: 0.75,
-	fixtureGlow: 0.9,
+	backdropBottom: [0.025, 0.048, 0.05],
+	causticIntensity: 0.35,
+	shaftIntensity: 0.3,
 	moonGlow: 0.0,
-	environmentIntensity: 0.45,
-	exposure: 1.0,
+	environmentIntensity: 0.55,
+	exposure: 1.1,
 }
 
 const MIDDAY: LightingProfile = {
 	daylight: 1.0,
-	keyColor: [1.0, 0.98, 0.94],
-	keyIntensity: 3.4,
-	skyColor: [0.78, 0.9, 0.92],
-	groundColor: [0.17, 0.16, 0.12],
-	fillIntensity: 0.46,
-	moonColor: [0.48, 0.64, 1.0],
+	keyColor: [0.97, 0.98, 1.0],
+	keyIntensity: 2.0,
+	skyColor: [0.8, 0.9, 0.95],
+	groundColor: [0.2, 0.19, 0.15],
+	fillIntensity: 0.72,
+	moonColor: [0.5, 0.66, 1.0],
 	moonIntensity: 0.0,
-	waterColor: [0.05, 0.13, 0.13],
-	backdropTop: [0.4, 0.56, 0.53],
-	backdropBottom: [0.02, 0.05, 0.055],
-	causticIntensity: 1.0,
-	shaftIntensity: 0.85,
-	fixtureGlow: 1.0,
+	waterColor: [0.06, 0.13, 0.135],
+	backdropTop: [0.38, 0.53, 0.52],
+	backdropBottom: [0.025, 0.052, 0.058],
+	causticIntensity: 0.4,
+	shaftIntensity: 0.3,
 	moonGlow: 0.0,
-	environmentIntensity: 0.5,
-	exposure: 1.0,
+	environmentIntensity: 0.6,
+	exposure: 1.1,
 }
 
 const AFTERNOON: LightingProfile = {
 	daylight: 0.9,
-	keyColor: [1.0, 0.88, 0.7],
-	keyIntensity: 3.0,
-	skyColor: [0.76, 0.8, 0.74],
-	groundColor: [0.17, 0.14, 0.1],
-	fillIntensity: 0.44,
-	moonColor: [0.48, 0.64, 1.0],
+	keyColor: [1.0, 0.9, 0.74],
+	keyIntensity: 1.8,
+	skyColor: [0.78, 0.82, 0.76],
+	groundColor: [0.19, 0.15, 0.11],
+	fillIntensity: 0.68,
+	moonColor: [0.5, 0.66, 1.0],
 	moonIntensity: 0.0,
-	waterColor: [0.06, 0.12, 0.1],
+	waterColor: [0.07, 0.12, 0.11],
 	backdropTop: [0.42, 0.48, 0.4],
-	backdropBottom: [0.025, 0.045, 0.04],
-	causticIntensity: 0.9,
-	shaftIntensity: 0.8,
-	fixtureGlow: 0.95,
+	backdropBottom: [0.03, 0.048, 0.042],
+	causticIntensity: 0.35,
+	shaftIntensity: 0.3,
 	moonGlow: 0.0,
-	environmentIntensity: 0.45,
-	exposure: 1.0,
+	environmentIntensity: 0.55,
+	exposure: 1.1,
 }
 
 const SUNSET: LightingProfile = {
 	daylight: 0.45,
-	keyColor: [1.0, 0.56, 0.34],
+	keyColor: [1.0, 0.58, 0.36],
 	keyIntensity: 1.7,
-	skyColor: [0.62, 0.42, 0.4],
-	groundColor: [0.12, 0.07, 0.05],
-	fillIntensity: 0.45,
-	moonColor: [0.48, 0.64, 1.0],
-	moonIntensity: 0.05,
+	skyColor: [0.66, 0.46, 0.42],
+	groundColor: [0.13, 0.08, 0.06],
+	fillIntensity: 0.6,
+	moonColor: [0.5, 0.66, 1.0],
+	moonIntensity: 0.08,
 	waterColor: [0.1, 0.08, 0.08],
-	backdropTop: [0.48, 0.31, 0.17],
-	backdropBottom: [0.04, 0.03, 0.025],
-	causticIntensity: 0.5,
-	shaftIntensity: 0.5,
-	fixtureGlow: 0.5,
+	backdropTop: [0.52, 0.34, 0.19],
+	backdropBottom: [0.045, 0.034, 0.028],
+	causticIntensity: 0.35,
+	shaftIntensity: 0.45,
 	moonGlow: 0.1,
-	environmentIntensity: 0.3,
-	exposure: 1.0,
+	environmentIntensity: 0.35,
+	exposure: 1.1,
 }
 
 const DUSK: LightingProfile = {
 	daylight: 0.14,
-	keyColor: [0.62, 0.48, 0.66],
-	keyIntensity: 0.35,
-	skyColor: [0.26, 0.24, 0.4],
-	groundColor: [0.04, 0.03, 0.04],
-	fillIntensity: 0.36,
-	moonColor: [0.48, 0.64, 1.0],
-	moonIntensity: 0.45,
-	waterColor: [0.03, 0.04, 0.07],
-	backdropTop: [0.12, 0.11, 0.2],
-	backdropBottom: [0.01, 0.012, 0.02],
+	keyColor: [0.62, 0.5, 0.7],
+	keyIntensity: 0.4,
+	skyColor: [0.3, 0.28, 0.46],
+	groundColor: [0.05, 0.04, 0.05],
+	fillIntensity: 0.5,
+	moonColor: [0.5, 0.66, 1.0],
+	moonIntensity: 0.8,
+	waterColor: [0.035, 0.045, 0.08],
+	backdropTop: [0.14, 0.13, 0.24],
+	backdropBottom: [0.012, 0.014, 0.025],
 	causticIntensity: 0.2,
-	shaftIntensity: 0.08,
-	fixtureGlow: 0.1,
+	shaftIntensity: 0.06,
 	moonGlow: 0.7,
-	environmentIntensity: 0.18,
-	exposure: 1.0,
+	environmentIntensity: 0.22,
+	exposure: 1.15,
 }
 
-/** Keyframes across a simulated 24-hour day. Must be sorted by hour. */
+/** Keyframes of natural light across a simulated 24-hour day. Must be sorted by hour. */
 export const LIGHTING_KEYFRAMES: readonly LightingKeyframe[] = [
 	{ hour: 0, profile: NIGHT },
 	{ hour: 5.5, profile: NIGHT },
@@ -192,6 +185,40 @@ export const LIGHTING_KEYFRAMES: readonly LightingKeyframe[] = [
 /** The hour whose lighting is used for the manual "Day" and "Night" modes. */
 export const MANUAL_DAY_HOUR = 12
 export const MANUAL_NIGHT_HOUR = 0
+
+/**
+ * The LED fixture above the tank: what it adds to the natural light at full
+ * output. It lights the water from directly above, so it brings strong
+ * caustics and light shafts, and the water itself glows with scattered light.
+ */
+export const TANK_LIGHT = {
+	color: [1.0, 0.97, 0.93] as RGB,
+	keyIntensity: 3.0,
+	fillColor: [0.8, 0.93, 0.9] as RGB,
+	fillIntensity: 0.45,
+	causticIntensity: 0.75,
+	shaftIntensity: 0.6,
+	/** Light scattered by the water, added to its colour. */
+	waterColor: [0.035, 0.07, 0.07] as RGB,
+	backdropTop: [0.12, 0.15, 0.14] as RGB,
+	backdropBottom: [0.015, 0.03, 0.03] as RGB,
+	/**
+	 * How much fish treat the lamp as daylight. Switched on at night it wakes
+	 * them, though not quite as fully as the sun.
+	 */
+	daylight: 0.7,
+	/** In Auto mode the light runs on a timer, like a real aquarium's. Hours. */
+	onHour: 7.5,
+	offHour: 18.5,
+	/** Simulated hours the timer takes to fade the light, like a controller's sunrise. */
+	timerRampHours: 0.75,
+	/** Upper limit on a timed fade in real seconds, so the local-time clock still fades visibly. */
+	maxTimerRampSeconds: 90,
+	/** Real seconds a switch by hand takes: an LED driver's soft start. */
+	switchSeconds: 1.6,
+	/** Real seconds the light takes to follow a change between Day and Night. */
+	modeSeconds: 3,
+} as const
 
 /** Start (inclusive) hour of each phase, in order through the day. */
 export const DAY_PHASES: ReadonlyArray<{ phase: DayPhase; start: number }> = [

@@ -1,5 +1,8 @@
+import { Vector3 } from "three"
+import { STARTER_ROSTER } from "@/config/species"
 import { FRONT_GLASS_Z, TANK_INTERIOR } from "@/config/tank"
 import { AquariumWorld } from "@/simulation/core/World"
+import { substrateHeight } from "@/simulation/environment/substrate"
 import type { FishState } from "@/simulation/fish/types"
 
 const DT = 1 / 30
@@ -57,6 +60,200 @@ describe("aquarium simulation", () => {
 			neons.some((m) => m !== n && m.position.distanceTo(n.position) < 0.15),
 		)
 		expect(near.length / neons.length).toBeGreaterThan(0.6)
+	})
+})
+
+describe("natural movement", () => {
+	it("turns smoothly: the heading never jumps, even at the glass or the bottom", () => {
+		const world = createWorld()
+		const previous = new Map<number, Vector3>()
+		let largestStep = 0
+		let glideTurns = 0
+		let turns = 0
+		simulate(world, 90, () => {
+			for (const agent of world.fish.agents) {
+				const before = previous.get(agent.id)
+				if (before && agent.state !== "startled" && !agent.cling) {
+					const step = before.angleTo(agent.heading)
+					largestStep = Math.max(largestStep, step)
+					if (agent.species.movement.swimStyle === "burstGlide" && step / DT > 1) {
+						turns++
+						if (agent.thrust < 0.2) glideTurns++
+					}
+				}
+				previous.set(agent.id, (before ?? new Vector3()).copy(agent.heading))
+			}
+		})
+		// Under ~25° per 1/30 s step: fast turns build up rather than snapping.
+		expect(largestStep).toBeLessThan(0.45)
+		// Burst-and-glide swimmers turn with a kick of the tail, not while coasting.
+		expect(glideTurns / Math.max(turns, 1)).toBeLessThan(0.3)
+	})
+
+	it("goldfish and koi pick over the substrate nose-down", () => {
+		const world = createWorld()
+		let pecking = 0
+		simulate(world, 240, () => {
+			for (const agent of world.fish.agents) {
+				if (agent.species.id !== "goldfish" && agent.species.id !== "koi") continue
+				if (agent.state !== "foraging" || !agent.arrived) continue
+				const floor = substrateHeight(agent.position.x, agent.position.z)
+				if (agent.heading.y < -0.25 && agent.position.y - floor < agent.bodyLength) pecking++
+			}
+		})
+		expect(pecking).toBeGreaterThan(0)
+	})
+
+	it("the pleco grazes while holding on to surfaces, and moves between patches", () => {
+		const world = createWorld({ lightMode: "night" })
+		const pleco = world.fish.agents.find((a) => a.species.id === "bristlenose-pleco")!
+		let attachedSeconds = 0
+		let attachments = 0
+		let wasAttached = false
+		let heldFor = 0
+		let backAgainstSurface = 1
+		simulate(world, 300, () => {
+			if (pleco.cling) {
+				attachedSeconds += DT
+				if (!wasAttached) {
+					attachments++
+					heldFor = 0
+				}
+				heldFor += DT
+				// Once settled, its back faces away from the surface it holds.
+				if (heldFor > 2 && pleco.cling.kind === "glass")
+					backAgainstSurface = Math.min(backAgainstSurface, pleco.up.dot(pleco.cling.normal))
+			}
+			wasAttached = pleco.cling !== null
+			const b = world.bounds
+			expect(pleco.position.x).toBeGreaterThanOrEqual(b.minX)
+			expect(pleco.position.x).toBeLessThanOrEqual(b.maxX)
+			expect(pleco.position.z).toBeGreaterThanOrEqual(b.minZ)
+			expect(pleco.position.z).toBeLessThanOrEqual(b.maxZ)
+		})
+		expect(attachedSeconds).toBeGreaterThan(60)
+		expect(attachments).toBeGreaterThan(1)
+		expect(backAgainstSurface).toBeGreaterThan(0.9)
+	})
+})
+
+describe("choosing the fish", () => {
+	const ofSpecies = (world: AquariumWorld, id: string) =>
+		world.fish.agents.filter((a) => a.species.id === id)
+
+	it("brings new fish out of cover, fading in", () => {
+		const world = createWorld()
+		simulate(world, 5)
+		let changes = 0
+		world.events.on("population:changed", () => changes++)
+		world.setRoster({ ...STARTER_ROSTER, discus: 3 })
+		const discus = ofSpecies(world, "discus")
+		expect(discus).toHaveLength(3)
+		expect(changes).toBe(1)
+		expect(world.fish.composition.split(",")).toContain("discus")
+		for (const fish of discus) {
+			expect(fish.presence).toBe(0)
+			const nearCover = world.scape.coverSpots.some(
+				(spot) => Math.hypot(spot.x - fish.position.x, spot.z - fish.position.z) < 0.15,
+			)
+			expect(nearCover).toBe(true)
+		}
+		simulate(world, 3)
+		for (const fish of discus) expect(fish.presence).toBe(1)
+	})
+
+	it("lets fish that are taken out swim into cover and fade away", () => {
+		const world = createWorld()
+		simulate(world, 5)
+		const neons = ofSpecies(world, "neon-tetra")
+		const withoutNeons = Object.fromEntries(
+			Object.entries(STARTER_ROSTER).filter(([id]) => id !== "neon-tetra"),
+		)
+		world.setRoster(withoutNeons)
+		// They don't vanish on the spot.
+		expect(ofSpecies(world, "neon-tetra")).toHaveLength(neons.length)
+		expect(neons.every((n) => n.leaving && n.presence === 1)).toBe(true)
+		simulate(world, 1)
+		expect(neons.every((n) => n.leaving && n.state === "hiding")).toBe(true)
+		simulate(world, 6)
+		expect(ofSpecies(world, "neon-tetra")).toHaveLength(0)
+		expect(world.fish.composition.split(",")).not.toContain("neon-tetra")
+		expect(world.fish.agents.length).toBe(world.fish.agents.filter((a) => !a.leaving).length)
+	})
+
+	it("turns departing fish back if the owner changes their mind", () => {
+		const world = createWorld()
+		simulate(world, 2)
+		const before = ofSpecies(world, "zebra-danio").map((a) => a.id)
+		world.setRoster({ ...STARTER_ROSTER, "zebra-danio": 5 })
+		expect(ofSpecies(world, "zebra-danio").filter((a) => a.leaving)).toHaveLength(2)
+		simulate(world, 1)
+		world.setRoster(STARTER_ROSTER)
+		const after = ofSpecies(world, "zebra-danio")
+		expect(after.map((a) => a.id).sort()).toEqual([...before].sort())
+		expect(after.every((a) => !a.leaving)).toBe(true)
+		simulate(world, 8)
+		expect(ofSpecies(world, "zebra-danio")).toHaveLength(before.length)
+	})
+
+	it("fits the tank to the quality level, keeping schools together", () => {
+		const world = createWorld()
+		world.setFishCapacity(36)
+		simulate(world, 8)
+		expect(world.fish.agents.length).toBeLessThanOrEqual(40)
+		for (const [id, count] of world.fish.countBySpecies())
+			expect(count).toBeGreaterThanOrEqual(
+				world.fish.agents.find((a) => a.species.id === id)!.species.population.minCount,
+			)
+	})
+
+	it("runs with an empty tank, and fills it again", () => {
+		const world = createWorld()
+		world.setRoster({})
+		simulate(world, 8)
+		expect(world.fish.agents).toHaveLength(0)
+		expect(world.fish.composition).toBe("")
+		world.setRoster({ guppy: 4 })
+		simulate(world, 5)
+		expect(world.fish.agents).toHaveLength(4)
+	})
+
+	it("lets the new species live by their nature", () => {
+		const world = createWorld({
+			roster: { "rummy-nose-tetra": 10, "clown-loach": 4, otocinclus: 4, discus: 3 },
+			hour: 22,
+		})
+		const b = world.bounds
+		let otoAttached = 0
+		let loachDepth = 0
+		let loachSamples = 0
+		simulate(world, 180, () => {
+			for (const agent of world.fish.agents) {
+				if (agent.species.id === "otocinclus" && agent.cling) otoAttached++
+				if (agent.species.id === "clown-loach") {
+					loachDepth += (agent.position.y - b.minY) / (b.maxY - b.minY)
+					loachSamples++
+				}
+			}
+		})
+		// The otocinclus graze while holding on to surfaces; the loaches keep to the lowest water.
+		expect(otoAttached).toBeGreaterThan(0)
+		expect(loachDepth / loachSamples).toBeLessThan(0.3)
+	})
+
+	it("keeps rummy-nose tetras in a tight school by day", () => {
+		const world = createWorld({ roster: { "rummy-nose-tetra": 10, discus: 3 } })
+		const rummies = ofSpecies(world, "rummy-nose-tetra")
+		let schooled = 0
+		let samples = 0
+		simulate(world, 120, (time) => {
+			if (time < 60 || Math.round(time * 30) % 15 !== 0) return
+			for (const n of rummies) {
+				if (rummies.some((m) => m !== n && m.position.distanceTo(n.position) < 0.12)) schooled++
+				samples++
+			}
+		})
+		expect(schooled / samples).toBeGreaterThan(0.75)
 	})
 })
 
@@ -181,5 +378,56 @@ describe("day/night behaviour", () => {
 		expect(world.lighting.current.daylight).toBeGreaterThan(0.9)
 		simulate(world, 15)
 		expect(world.lighting.current.daylight).toBeLessThan(0.1)
+	})
+
+	it("Day turns the tank light on and Night turns it off", () => {
+		const world = createWorld({ lightMode: "auto", hour: 2 })
+		expect(world.lighting.tankLight.on).toBe(false)
+		world.setLightMode("day")
+		expect(world.lighting.tankLight.on).toBe(true)
+		world.setLightMode("night")
+		expect(world.lighting.tankLight.on).toBe(false)
+		// It can still be switched on by hand at night, and fades up rather than snapping.
+		world.setTankLight(true)
+		world.update(1 / 60)
+		expect(world.lighting.tankLight.level).toBeLessThan(0.05)
+		simulate(world, 3)
+		expect(world.lighting.tankLight.level).toBe(1)
+	})
+
+	it("in Auto the timer switches the light, and a switch by hand holds until its next change", () => {
+		// 12 real minutes per day: one simulated hour every 30 seconds.
+		const world = createWorld({ hour: 7, cycleMinutes: 12, lightMode: "auto" })
+		const changes: Array<{ on: boolean; cause: string }> = []
+		world.events.on("tank-light:changed", ({ on, cause }) => changes.push({ on, cause }))
+		expect(world.lighting.tankLight.on).toBe(false)
+		simulate(world, 30) // 08:00, past the timer's morning switch
+		expect(world.lighting.tankLight.on).toBe(true)
+		expect(changes).toEqual([{ on: true, cause: "timer" }])
+
+		world.setTankLight(false)
+		simulate(world, 60) // 10:00, still off as the user left it
+		expect(world.lighting.tankLight.on).toBe(false)
+
+		simulate(world, 30 * 13) // 23:00, after the timer's evening switch
+		expect(world.lighting.tankLight.on).toBe(false)
+		// Already off by hand, so the evening switch had nothing to do.
+		expect(changes.map((c) => c.cause)).toEqual(["timer", "manual"])
+	})
+
+	it("switching the tank light on at night wakes the fish", () => {
+		const dark = createWorld({ lightMode: "night", tankLight: false })
+		const lit = createWorld({ lightMode: "night", tankLight: true })
+		simulate(dark, 60)
+		simulate(lit, 60)
+		let darkResting = 0
+		let litResting = 0
+		for (let i = 0; i < 30; i++) {
+			simulate(dark, 1)
+			simulate(lit, 1)
+			darkResting += countStates(dark, ["resting"])
+			litResting += countStates(lit, ["resting"])
+		}
+		expect(litResting).toBeLessThan(darkResting * 0.7)
 	})
 })

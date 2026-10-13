@@ -2,7 +2,7 @@
 
 A calm, cinematic aquarium for your screen. Fish you choose from eighteen species live their own lives among stone, driftwood and swaying plants, under a slow day and night. Nothing follows a path: every fish is an autonomous agent with its own personality, hunger, energy and fears.
 
-**Live demo:** _coming soon_ <!-- Replace with the Vercel URL once deployed, e.g. [aquazen.vercel.app](https://aquazen.vercel.app) -->
+**[Live demo](https://aqua-zen-mu.vercel.app/)**
 
 ![The AquaZen aquarium by day: koi, angelfish, goldfish, tetras and guppies swimming among driftwood, stones and tall plants](docs/screenshots/aquarium-day.jpg)
 

@@ -2,7 +2,36 @@
 
 A calm, cinematic aquarium for your screen. Fish you choose from eighteen species live their own lives among stone, driftwood and swaying plants, under a slow day and night. Nothing follows a path: every fish is an autonomous agent with its own personality, hunger, energy and fears.
 
+**Live demo:** _coming soon_ <!-- Replace with the Vercel URL once deployed, e.g. [aquazen.vercel.app](https://aquazen.vercel.app) -->
+
+![The AquaZen aquarium by day: koi, angelfish, goldfish, tetras and guppies swimming among driftwood, stones and tall plants](docs/screenshots/aquarium-day.jpg)
+
 Built with Next.js, React Three Fiber and three.js. Everything you see and hear is generated in code. There are no 3D models, textures or audio files, so there's nothing to license (see [docs/assets.md](docs/assets.md)).
+
+## Screenshots
+
+<table>
+	<tr>
+		<td width="50%" align="center">
+			<img src="docs/screenshots/aquarium-night.jpg" alt="Night: the tank light is off and the water is lit by blue moonlight while the fish swim slowly or rest">
+			<br><sub>Night, by moonlight</sub>
+		</td>
+		<td width="50%" align="center">
+			<img src="docs/screenshots/feeding.jpg" alt="Feeding: fish gather near the surface around a pinch of flakes, with the control dock shown below the tank">
+			<br><sub>Feeding, with the controls shown</sub>
+		</td>
+	</tr>
+	<tr>
+		<td width="50%" align="center">
+			<img src="docs/screenshots/fish-panel.jpg" alt="The Fish panel lists each species with a portrait, a short description, a group size and an on/off switch">
+			<br><sub>Choosing the fish in the tank</sub>
+		</td>
+		<td width="50%" align="center">
+			<img src="docs/screenshots/mobile.jpg" alt="AquaZen on a phone in portrait, with a compact icon-only control dock" width="180">
+			<br><sub>On a phone</sub>
+		</td>
+	</tr>
+</table>
 
 ## What's in the tank
 
@@ -21,9 +50,11 @@ Built with Next.js, React Three Fiber and three.js. Everything you see and hear 
 
 ## Getting started
 
-Requires Node.js 20.9 or later.
+Requires Node.js 20.9 or later and a browser with WebGL 2.
 
 ```bash
+git clone https://github.com/SubashRandika/aqua-zen.git
+cd aqua-zen
 npm install
 npm run dev        # http://localhost:3000
 ```
@@ -138,7 +169,15 @@ tests/
 
 ## Deployment
 
-AquaZen is a static site: every route is prerendered. It deploys to Vercel or any Node host with `npm run build && npm start`. Set `NEXT_PUBLIC_SITE_URL` to the public URL so Open Graph images resolve to absolute addresses.
+AquaZen is a static site: every route is prerendered, and it needs no backend, database or secrets.
+
+**Vercel** (recommended):
+
+1. Import the repository at [vercel.com/new](https://vercel.com/new). Vercel detects Next.js; the default build settings work as they are.
+2. Under **Environment Variables**, set `NEXT_PUBLIC_SITE_URL` to the site's public URL (for example `https://aquazen.vercel.app`) so Open Graph and Twitter images resolve to absolute addresses.
+3. Deploy. Each push to the production branch redeploys.
+
+**Any Node host:** `npm run build && npm start`, with `NEXT_PUBLIC_SITE_URL` set the same way.
 
 ## Licence and assets
 
